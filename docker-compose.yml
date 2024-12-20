@@ -1,0 +1,6 @@
+services:
+  bloomcycle:
+    build: .
+    container_name: bloomcycle
+    ports:
+      - "8080:8080"
