@@ -1,6 +1,37 @@
 services:
-  bloomcycle:
+  bloom-cycle:
     build: .
-    container_name: bloomcycle
+    container_name: bloom-cycle
     ports:
       - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/bloomcycle
+      SPRING_DATASOURCE_USERNAME: bloomuser
+      SPRING_DATASOURCE_PASSWORD: bloompassword
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_DATABASE: bloomcycle
+      MYSQL_USER: bloomuser
+      MYSQL_PASSWORD: bloompassword
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -u root -prootpassword"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql-data:
