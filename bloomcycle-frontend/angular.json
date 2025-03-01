@@ -57,6 +57,15 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "host": "0.0.0.0",
+            "allowedHosts": [
+              "localhost",
+              "127.0.0.1",
+              "192.168.122.1",
+              "bloomcycle.microsoftgroups.org"
+            ]
+          },
           "configurations": {
             "production": {
               "buildTarget": "bloomcycle:build:production"
@@ -92,5 +101,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }
