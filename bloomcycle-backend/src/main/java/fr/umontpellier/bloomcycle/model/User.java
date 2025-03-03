@@ -1,4 +1,6 @@
 package fr.umontpellier.bloomcycle.model;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -29,5 +31,7 @@ public class User {
     private String fullName;
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    @JsonBackReference
     private List<Project> projects = new ArrayList<>();
 }
