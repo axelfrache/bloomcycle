@@ -3,6 +3,7 @@ package fr.umontpellier.bloomcycle.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +23,12 @@ public class Project {
 
     private String status;
 
+    @JsonManagedReference
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User owner;
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<File> files = new ArrayList<>();
 }
