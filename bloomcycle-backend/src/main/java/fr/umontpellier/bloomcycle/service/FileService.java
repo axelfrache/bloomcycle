@@ -1,17 +1,19 @@
 package fr.umontpellier.bloomcycle.service;
 
-import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.repository.FileRepository;
 import fr.umontpellier.bloomcycle.repository.ProjectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Service
 public class FileService {
@@ -19,7 +21,7 @@ public class FileService {
     private final FileRepository fileRepository;
     private final ProjectRepository projectRepository;
 
-    @Value("${app.file-storage.base-path}")
+    @Value("${app.storage.path:/tmp/bloomcycle}")
     private String baseStoragePath;
 
     @Autowired
@@ -29,81 +31,77 @@ public class FileService {
     }
 
     public String getProjectStoragePath(Long projectId) {
-        return baseStoragePath + "/" + projectId;
+        return Paths.get(baseStoragePath, "projects", projectId.toString()).toString();
     }
 
-    public fr.umontpellier.bloomcycle.model.File addFileToProject(Long projectId, fr.umontpellier.bloomcycle.model.File file) {
-        var project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found"));
-
-        file.setProject(project);
-        return fileRepository.save(file);
+    public void extractZipFile(MultipartFile zipFile, Path targetPath) throws IOException {
+        String commonPrefix = findCommonPrefix(zipFile);
+        extractFiles(zipFile, targetPath, commonPrefix);
     }
 
-    public void deleteFile(Long fileId) {
-        var file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
-
-        try {
-            Files.deleteIfExists(new File(file.getFilePath()).toPath());
-        } catch (IOException e) {
-            throw new RuntimeException("Error deleting file: " + file.getName(), e);
-        }
-
-        fileRepository.deleteById(fileId);
-    }
-
-    public fr.umontpellier.bloomcycle.model.File getFileById(Long fileId) {
-        return fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
-    }
-
-    public void uploadSourcesToProject(Long projectId, String sourcePath) {
-        var project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found"));
-
-        var sourceDirectory = new File(sourcePath);
-        if (!sourceDirectory.isDirectory()) {
-            throw new IllegalArgumentException("Invalid source path: Not a directory");
-        }
-
-        String projectStoragePath = getProjectStoragePath(projectId);
-        new File(projectStoragePath).mkdirs();
-
-        for (var child : Objects.requireNonNull(sourceDirectory.listFiles())) {
-            copyDirectoryRecursively(child, new File(projectStoragePath), project);
-        }
-    }
-
-    private void copyDirectoryRecursively(File source, File target, Project project) {
-        if (source.isDirectory()) {
-            var newDir = new File(target, source.getName());
-            newDir.mkdir();
-
-            for (var child : Objects.requireNonNull(source.listFiles())) {
-                copyDirectoryRecursively(child, newDir, project);
+    private String findCommonPrefix(MultipartFile zipFile) throws IOException {
+        try (var zipInputStream = new ZipInputStream(zipFile.getInputStream())) {
+            ZipEntry firstEntry = zipInputStream.getNextEntry();
+            if (firstEntry == null) {
+                return "";
             }
+
+            String potentialPrefix = firstEntry.isDirectory() ? firstEntry.getName() : "";
+
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                if (!entry.getName().startsWith(potentialPrefix)) {
+                    return "";
+                }
+                zipInputStream.closeEntry();
+            }
+
+            return potentialPrefix;
+        }
+    }
+
+    private void extractFiles(MultipartFile zipFile, Path targetPath, String commonPrefix) throws IOException {
+        try (var zipInputStream = new ZipInputStream(zipFile.getInputStream())) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                extractSingleEntry(entry, zipInputStream, targetPath, commonPrefix);
+                zipInputStream.closeEntry();
+            }
+        }
+    }
+
+    private void extractSingleEntry(ZipEntry entry, ZipInputStream zipStream, Path targetPath, String commonPrefix) throws IOException {
+        String entryName = getEntryName(entry, commonPrefix);
+        if (entryName.isEmpty()) {
+            return;
+        }
+
+        Path entryPath = targetPath.resolve(entryName);
+        validatePath(entryPath, targetPath);
+
+        if (entry.isDirectory()) {
+            Files.createDirectories(entryPath);
         } else {
-            try {
-                var targetFile = new File(target, source.getName());
-                Files.copy(source.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-                fr.umontpellier.bloomcycle.model.File newFile = new fr.umontpellier.bloomcycle.model.File();
-                newFile.setName(source.getName());
-                newFile.setType(Files.probeContentType(source.toPath()));
-                newFile.setFilePath(targetFile.getAbsolutePath());
-                newFile.setProject(project);
-
-                fileRepository.save(newFile);
-            } catch (IOException e) {
-                throw new RuntimeException("Error copying file: " + source.getName(), e);
-            }
+            extractFile(zipStream, entryPath);
         }
     }
 
-    public byte[] getFileContent(Long fileId) throws IOException {
-        var file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
-        return Files.readAllBytes(new File(file.getFilePath()).toPath());
+    private String getEntryName(ZipEntry entry, String commonPrefix) {
+        String entryName = entry.getName();
+        if (!commonPrefix.isEmpty() && entryName.startsWith(commonPrefix)) {
+            entryName = entryName.substring(commonPrefix.length());
+        }
+        return entryName;
+    }
+
+    private void validatePath(Path entryPath, Path targetPath) {
+        if (!entryPath.normalize().startsWith(targetPath.normalize())) {
+            throw new SecurityException("ZIP contains malicious paths");
+        }
+    }
+
+    private void extractFile(ZipInputStream zipStream, Path filePath) throws IOException {
+        Files.createDirectories(filePath.getParent());
+        Files.copy(zipStream, filePath, StandardCopyOption.REPLACE_EXISTING);
     }
 }
