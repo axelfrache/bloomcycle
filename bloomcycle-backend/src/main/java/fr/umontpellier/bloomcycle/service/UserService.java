@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-
 @Service
 public class UserService {
 
@@ -21,43 +19,34 @@ public class UserService {
     }
 
     public User registerUser(User user) {
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already exists!");
-        }
-
-        if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("Username already exists!");
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already registered");
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-
         return userRepository.save(user);
     }
 
     public User loginUser(String email, String password) {
-        Optional<User> optionalUser = userRepository.findByEmail(email);
-
-        if (optionalUser.isEmpty()) {
-            throw new RuntimeException("User not found with email: " + email);
-        }
-
-        var user = optionalUser.get();
-
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid password!");
-        }
-
-        return user;
-    }
-
-    public User getUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+        return userRepository.findByEmail(email)
+            .filter(user -> passwordEncoder.matches(password, user.getPassword()))
+            .orElseThrow(() -> new RuntimeException("Invalid email or password"));
     }
 
     public User getUserByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+    }
+
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
+    }
+
+    public boolean validateCredentials(String email, String password) {
+        return userRepository.findByEmail(email)
+            .map(user -> passwordEncoder.matches(password, user.getPassword()))
+            .orElse(false);
     }
 
     public User updateUser(Long userId, User updatedUser) {

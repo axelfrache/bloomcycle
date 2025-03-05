@@ -38,18 +38,23 @@ public class ProjectService {
                 .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
     }
 
+    private Project createProject(String projectName, Long userId) {
+        var user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        var project = new Project();
+        project.setName(projectName);
+        project.setOwner(user);
+        project.setStatus("Initialized");
+        
+        return projectRepository.save(project);
+    }
+
     public Project initializeProjectFromGit(String projectName, String gitUrl, Long userId) {
         try {
-            var user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
-
-            var project = new Project();
-            project.setName(projectName);
-            project.setOwner(user);
-            project.setStatus("Initialized");
-            project = projectRepository.save(project);
-
-            String projectPath = fileService.getProjectStoragePath(project.getId());
+            var project = createProject(projectName, userId);
+            var projectPath = fileService.getProjectStoragePath(project.getId());
+            
             Files.createDirectories(Paths.get(projectPath));
             gitService.cloneRepository(gitUrl, projectPath);
 
@@ -61,17 +66,10 @@ public class ProjectService {
 
     public Project initializeProjectFromZip(String projectName, MultipartFile sourceZip, Long userId) {
         try {
-            var user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
-
-            var project = new Project();
-            project.setName(projectName);
-            project.setOwner(user);
-            project.setStatus("Initialized");
-            project = projectRepository.save(project);
-
+            var project = createProject(projectName, userId);
             var projectPath = fileService.getProjectStoragePath(project.getId());
             var targetPath = Paths.get(projectPath);
+            
             Files.createDirectories(targetPath);
             fileService.extractZipFile(sourceZip, targetPath);
 
