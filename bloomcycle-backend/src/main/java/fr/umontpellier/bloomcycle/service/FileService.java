@@ -35,73 +35,67 @@ public class FileService {
     }
 
     public void extractZipFile(MultipartFile zipFile, Path targetPath) throws IOException {
-        String commonPrefix = findCommonPrefix(zipFile);
-        extractFiles(zipFile, targetPath, commonPrefix);
+        var commonPrefix = findCommonPrefix(zipFile);
+        extractEntriesFromZip(zipFile, targetPath, commonPrefix);
     }
 
     private String findCommonPrefix(MultipartFile zipFile) throws IOException {
-        try (var zipInputStream = new ZipInputStream(zipFile.getInputStream())) {
-            ZipEntry firstEntry = zipInputStream.getNextEntry();
-            if (firstEntry == null) {
-                return "";
-            }
+        try (var zip = new ZipInputStream(zipFile.getInputStream())) {
+            var firstEntry = zip.getNextEntry();
+            if (firstEntry == null) return "";
 
-            String potentialPrefix = firstEntry.isDirectory() ? firstEntry.getName() : "";
-
-            ZipEntry entry;
-            while ((entry = zipInputStream.getNextEntry()) != null) {
-                if (!entry.getName().startsWith(potentialPrefix)) {
-                    return "";
-                }
-                zipInputStream.closeEntry();
-            }
-
-            return potentialPrefix;
+            var prefix = firstEntry.isDirectory() ? firstEntry.getName() : "";
+            return isCommonPrefixValid(zip, prefix) ? prefix : "";
         }
     }
 
-    private void extractFiles(MultipartFile zipFile, Path targetPath, String commonPrefix) throws IOException {
-        try (var zipInputStream = new ZipInputStream(zipFile.getInputStream())) {
+    private boolean isCommonPrefixValid(ZipInputStream zip, String prefix) throws IOException {
+        ZipEntry entry;
+        while ((entry = zip.getNextEntry()) != null) {
+            if (!entry.getName().startsWith(prefix)) return false;
+            zip.closeEntry();
+        }
+        return true;
+    }
+
+    private void extractEntriesFromZip(MultipartFile zipFile, Path targetPath, String commonPrefix) throws IOException {
+        try (var zip = new ZipInputStream(zipFile.getInputStream())) {
             ZipEntry entry;
-            while ((entry = zipInputStream.getNextEntry()) != null) {
-                extractSingleEntry(entry, zipInputStream, targetPath, commonPrefix);
-                zipInputStream.closeEntry();
+            while ((entry = zip.getNextEntry()) != null) {
+                processZipEntry(entry, zip, targetPath, commonPrefix);
+                zip.closeEntry();
             }
         }
     }
 
-    private void extractSingleEntry(ZipEntry entry, ZipInputStream zipStream, Path targetPath, String commonPrefix) throws IOException {
-        String entryName = getEntryName(entry, commonPrefix);
-        if (entryName.isEmpty()) {
-            return;
-        }
+    private void processZipEntry(ZipEntry entry, ZipInputStream zip, Path targetPath, String commonPrefix) throws IOException {
+        var entryName = getRelativeEntryName(entry.getName(), commonPrefix);
+        if (entryName.isEmpty()) return;
 
-        Path entryPath = targetPath.resolve(entryName);
-        validatePath(entryPath, targetPath);
+        var entryPath = targetPath.resolve(entryName);
+        ensurePathSecurity(entryPath, targetPath);
 
         if (entry.isDirectory()) {
             Files.createDirectories(entryPath);
         } else {
-            extractFile(zipStream, entryPath);
+            extractFileEntry(zip, entryPath);
         }
     }
 
-    private String getEntryName(ZipEntry entry, String commonPrefix) {
-        String entryName = entry.getName();
-        if (!commonPrefix.isEmpty() && entryName.startsWith(commonPrefix)) {
-            entryName = entryName.substring(commonPrefix.length());
-        }
-        return entryName;
+    private String getRelativeEntryName(String entryName, String commonPrefix) {
+        return commonPrefix.isEmpty() ? entryName : 
+               entryName.startsWith(commonPrefix) ? entryName.substring(commonPrefix.length()) : 
+               entryName;
     }
 
-    private void validatePath(Path entryPath, Path targetPath) {
+    private void ensurePathSecurity(Path entryPath, Path targetPath) {
         if (!entryPath.normalize().startsWith(targetPath.normalize())) {
             throw new SecurityException("ZIP contains malicious paths");
         }
     }
 
-    private void extractFile(ZipInputStream zipStream, Path filePath) throws IOException {
+    private void extractFileEntry(ZipInputStream zip, Path filePath) throws IOException {
         Files.createDirectories(filePath.getParent());
-        Files.copy(zipStream, filePath, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(zip, filePath, StandardCopyOption.REPLACE_EXISTING);
     }
 }
