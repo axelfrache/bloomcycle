@@ -97,4 +97,19 @@ public class ProjectController {
     public ResponseEntity<List<ProjectResponse>> getAllProjects() {
         return null; // Placeholder return, actual implementation needed
     }
+
+    @Operation(summary = "Delete a project")
+    @ApiResponse(responseCode = "204", description = "Project successfully deleted")
+    @ApiResponse(responseCode = "404", description = "Project not found")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProject(
+            @Parameter(description = "ID of the project to delete") 
+            @PathVariable Long id) {
+        try {
+            projectService.deleteProject(id);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

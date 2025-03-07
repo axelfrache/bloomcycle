@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -83,19 +84,36 @@ public class FileService {
     }
 
     private String getRelativeEntryName(String entryName, String commonPrefix) {
-        return commonPrefix.isEmpty() ? entryName : 
-               entryName.startsWith(commonPrefix) ? entryName.substring(commonPrefix.length()) : 
-               entryName;
+        return commonPrefix.isEmpty() ? entryName :
+                entryName.startsWith(commonPrefix) ? entryName.substring(commonPrefix.length()) :
+                        entryName;
     }
 
     private void ensurePathSecurity(Path entryPath, Path targetPath) {
-        if (!entryPath.normalize().startsWith(targetPath.normalize())) {
+        if (!entryPath.normalize().startsWith(targetPath.normalize()))
             throw new SecurityException("ZIP contains malicious paths");
-        }
     }
 
     private void extractFileEntry(ZipInputStream zip, Path filePath) throws IOException {
         Files.createDirectories(filePath.getParent());
         Files.copy(zip, filePath, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public void deleteProjectDirectory(String projectPath) throws IOException {
+        var path = Paths.get(projectPath);
+        if (Files.exists(path))
+            try (var pathStream = Files.walk(path)) {
+                pathStream
+                        .sorted(Comparator.reverseOrder())
+                        .forEach(this::deleteFile);
+            }
+    }
+
+    private void deleteFile(Path path) {
+        try {
+            Files.delete(path);
+        } catch (IOException e) {
+            throw new RuntimeException("Error deleting file: " + path, e);
+        }
     }
 }
