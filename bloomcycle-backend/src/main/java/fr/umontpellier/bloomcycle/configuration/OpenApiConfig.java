@@ -18,6 +18,10 @@ public class OpenApiConfig {
             .url("http://localhost:9090")
             .description("Development server");
 
+        var prodServer = new Server()
+            .url("https://api-bloomcycle.axelfrache.me")
+            .description("Production server");
+
         var contact = new Contact()
             .name("BloomCycle Team")
             .email("contact@bloomcycle.fr");
@@ -30,6 +34,6 @@ public class OpenApiConfig {
 
         return new OpenAPI()
             .info(info)
-            .servers(List.of(devServer));
+            .servers(List.of(prodServer, devServer));
     }
 }
