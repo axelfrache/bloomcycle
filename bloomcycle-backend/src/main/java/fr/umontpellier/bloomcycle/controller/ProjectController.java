@@ -3,6 +3,12 @@ package fr.umontpellier.bloomcycle.controller;
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.service.ProjectService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +20,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/projects")
+@RequestMapping("/api/v1/projects")
+@Tag(name = "Projects", description = "Project management endpoints")
 public class ProjectController {
 
     private final ProjectService projectService;
@@ -24,12 +31,22 @@ public class ProjectController {
         this.projectService = projectService;
     }
 
+    @Operation(
+        summary = "Create a new project",
+        description = "Create a project from either a Git repository or a ZIP file"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project created successfully",
+        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
+    )
+    @ApiResponse(responseCode = "400", description = "Invalid input")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> createProject(
-            @RequestParam("name") String name,
-            @RequestParam("userId") Long userId,
-            @RequestParam(value = "gitUrl", required = false) String gitUrl,
-            @RequestParam(value = "sourceZip", required = false) MultipartFile sourceZip) {
+            @Parameter(description = "Project name") @RequestParam("name") String name,
+            @Parameter(description = "User ID") @RequestParam("userId") Long userId,
+            @Parameter(description = "Git repository URL") @RequestParam(value = "gitUrl", required = false) String gitUrl,
+            @Parameter(description = "Source code as ZIP file") @RequestParam(value = "sourceZip", required = false) MultipartFile sourceZip) {
         try {
             Project project;
             if (gitUrl != null && !gitUrl.isEmpty()) {
@@ -50,8 +67,10 @@ public class ProjectController {
         }
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<ProjectResponse>> getProjectsByUserId(@PathVariable Long userId) {
+    @Operation(summary = "Get projects by user ID")
+    @GetMapping("/users/{userId}")
+    public ResponseEntity<List<ProjectResponse>> getUserProjects(
+            @Parameter(description = "ID of the user") @PathVariable Long userId) {
         try {
             var projects = projectService.getProjectsByUserId(userId)
                     .stream()
@@ -63,13 +82,19 @@ public class ProjectController {
         }
     }
 
-    @GetMapping("/{projectId}")
-    public ResponseEntity<ProjectResponse> getProjectById(@PathVariable Long projectId) {
+    @Operation(summary = "Get project by ID")
+    @GetMapping("/{id}")
+    public ResponseEntity<ProjectResponse> getProject(@PathVariable Long id) {
         try {
-            var project = projectService.getProjectById(projectId);
+            var project = projectService.getProjectById(id);
             return ResponseEntity.ok(ProjectResponse.fromProject(project));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
         }
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ProjectResponse>> getAllProjects() {
+        return null; // Placeholder return, actual implementation needed
     }
 }
