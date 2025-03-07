@@ -78,4 +78,17 @@ public class ProjectService {
             throw new RuntimeException("Error initializing project from ZIP: " + e.getMessage(), e);
         }
     }
+
+    public void deleteProject(Long projectId) {
+        try {
+            var project = getProjectById(projectId);
+            var projectPath = fileService.getProjectStoragePath(projectId);
+            
+            fileService.deleteProjectDirectory(projectPath);
+            
+            projectRepository.delete(project);
+        } catch (Exception e) {
+            throw new RuntimeException("Error deleting project: " + e.getMessage(), e);
+        }
+    }
 }

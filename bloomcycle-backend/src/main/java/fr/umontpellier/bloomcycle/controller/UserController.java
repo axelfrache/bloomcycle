@@ -11,9 +11,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Controller
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
+@Tag(name = "Users", description = "User management endpoints")
 public class UserController {
 
     private final UserService userService;
@@ -23,8 +25,8 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<User> registerUser(@RequestBody User user) {
+    @PostMapping
+    public ResponseEntity<User> createUser(@RequestBody User user) {
         var createdUser = userService.registerUser(user);
         return ResponseEntity.ok(createdUser);
     }
