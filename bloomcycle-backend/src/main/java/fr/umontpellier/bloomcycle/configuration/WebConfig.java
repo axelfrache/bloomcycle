@@ -12,8 +12,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
             .allowedOrigins(
                 "http://localhost:4200",
-                "https://bloomcycle.microsoftgroups.org",
-                "http://192.168.122.1:4200"
+                "https://bloomcycle.microsoftgroups.org"
             )
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")
