@@ -3,13 +3,15 @@ services:
     build: .
     container_name: bloom-cycle
     ports:
-      - "8080:8080"
+      - "9090:9090"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/bloomcycle
       SPRING_DATASOURCE_USERNAME: bloomuser
       SPRING_DATASOURCE_PASSWORD: bloompassword
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+    volumes:
+      - bloomcycle_data:/data/bloomcycle
     depends_on:
       mysql:
         condition: service_healthy
@@ -35,3 +37,4 @@ services:
 
 volumes:
   mysql-data:
+  bloomcycle_data:
