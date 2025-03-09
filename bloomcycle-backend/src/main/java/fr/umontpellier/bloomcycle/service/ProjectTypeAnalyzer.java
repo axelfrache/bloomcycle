@@ -29,7 +29,7 @@ public class ProjectTypeAnalyzer {
     }
 
     public TechnologyStack analyzeTechnology(String projectPath) {
-        Path basePath = Path.of(projectPath);
+        var basePath = Path.of(projectPath);
 
         return Stream.of(TechnologyStack.values())
                 .filter(tech -> tech != TechnologyStack.UNKNOWN)
@@ -44,7 +44,7 @@ public class ProjectTypeAnalyzer {
     }
 
     public Optional<String> findContainerization(String projectPath) {
-        Path basePath = Path.of(projectPath);
+        var basePath = Path.of(projectPath);
 
         return Stream.of(
                         "docker-compose.yml",

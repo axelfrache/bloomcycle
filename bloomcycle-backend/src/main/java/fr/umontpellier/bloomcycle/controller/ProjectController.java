@@ -2,6 +2,7 @@ package fr.umontpellier.bloomcycle.controller;
 
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.model.Project;
+import fr.umontpellier.bloomcycle.service.DockerService;
 import fr.umontpellier.bloomcycle.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.Map;
@@ -25,10 +27,12 @@ import java.util.stream.Collectors;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final DockerService dockerService;
 
     @Autowired
-    public ProjectController(ProjectService projectService) {
+    public ProjectController(ProjectService projectService, DockerService dockerService) {
         this.projectService = projectService;
+        this.dockerService = dockerService;
     }
 
     @Operation(
@@ -110,6 +114,119 @@ public class ProjectController {
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(summary = "Start a project's containers")
+    @ApiResponse(responseCode = "202", description = "Project start initiated")
+    @ApiResponse(responseCode = "404", description = "Project not found")
+    @ApiResponse(responseCode = "500", description = "Error starting project")
+    @PostMapping("/{id}/start")
+    public ResponseEntity<Map<String, String>> startProject(
+            @Parameter(description = "Project ID") @PathVariable Long id) {
+        try {
+            projectService.getProjectById(id); // Vérifie que le projet existe
+            dockerService.startProject(id)
+                .thenAccept(status -> {
+                    if (status == DockerService.ContainerStatus.ERROR) {
+                        throw new RuntimeException("Failed to start project");
+                    }
+                });
+            return ResponseEntity.accepted()
+                .body(Map.of(
+                    "message", "Project start initiated",
+                    "status", "PENDING"
+                ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "error", "Failed to start project",
+                    "message", e.getMessage()
+                ));
+        }
+    }
+
+    @Operation(summary = "Stop a project's containers")
+    @ApiResponse(responseCode = "202", description = "Project stop initiated")
+    @ApiResponse(responseCode = "404", description = "Project not found")
+    @ApiResponse(responseCode = "500", description = "Error stopping project")
+    @PostMapping("/{id}/stop")
+    public ResponseEntity<Map<String, String>> stopProject(
+            @Parameter(description = "Project ID") @PathVariable Long id) {
+        try {
+            projectService.getProjectById(id);
+            dockerService.stopProject(id)
+                .thenAccept(status -> {
+                    if (status == DockerService.ContainerStatus.ERROR) {
+                        throw new RuntimeException("Failed to stop project");
+                    }
+                });
+            return ResponseEntity.accepted()
+                .body(Map.of(
+                    "message", "Project stop initiated",
+                    "status", "PENDING"
+                ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "error", "Failed to stop project",
+                    "message", e.getMessage()
+                ));
+        }
+    }
+
+    @Operation(summary = "Restart a project's containers")
+    @ApiResponse(responseCode = "202", description = "Project restart initiated")
+    @ApiResponse(responseCode = "404", description = "Project not found")
+    @ApiResponse(responseCode = "500", description = "Error restarting project")
+    @PostMapping("/{id}/restart")
+    public ResponseEntity<Map<String, String>> restartProject(
+            @Parameter(description = "Project ID") @PathVariable Long id) {
+        try {
+            projectService.getProjectById(id);
+            dockerService.restartProject(id)
+                .thenAccept(status -> {
+                    if (status == DockerService.ContainerStatus.ERROR) {
+                        throw new RuntimeException("Failed to restart project");
+                    }
+                });
+            return ResponseEntity.accepted()
+                .body(Map.of(
+                    "message", "Project restart initiated",
+                    "status", "PENDING"
+                ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "error", "Failed to restart project",
+                    "message", e.getMessage()
+                ));
+        }
+    }
+
+    @Operation(summary = "Get project containers status")
+    @ApiResponse(
+        responseCode = "200", 
+        description = "Project status retrieved successfully",
+        content = @Content(schema = @Schema(implementation = DockerService.ContainerStatus.class))
+    )
+    @ApiResponse(responseCode = "404", description = "Project not found")
+    @GetMapping("/{id}/status")
+    public ResponseEntity<Map<String, String>> getProjectStatus(
+            @Parameter(description = "Project ID") @PathVariable Long id) {
+        try {
+            projectService.getProjectById(id);
+            var status = dockerService.getProjectStatus(id);
+            return ResponseEntity.ok(Map.of(
+                "status", status.toString(),
+                "message", String.format("Project containers are %s", status.toString().toLowerCase())
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "error", "Failed to get project status",
+                    "message", e.getMessage()
+                ));
         }
     }
 }
