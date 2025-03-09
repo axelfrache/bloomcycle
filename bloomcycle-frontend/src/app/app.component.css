@@ -1,7 +1,7 @@
 header {
   background-color: white;
   border-bottom: 1px solid #e0e0e0;
-  padding: 15px 30px;
+  padding: 15px 30px 0 30px;
 }
 
 nav {
@@ -46,8 +46,10 @@ img {
   align-items: center;
   gap: 8px;
   font-family: serif;
-  padding: 8px 16px;
-  border-radius: 4px;
+  position: relative;
+  padding: 10px 20px;
+  border-radius: 12px 12px 0 0;
+  transition: background 0.3s, color 0.3s;
 }
 
 .nav-link:hover {
@@ -55,7 +57,10 @@ img {
 }
 
 .nav-link.active {
-  background-color: #e0e0e0;
+  background-color: #f5f0e6; /* Couleur beige du fond */
+  border: 1px solid #333;
+  border-bottom: none;
+  font-weight: bold;
 }
 
 main {

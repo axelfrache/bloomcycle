@@ -6,9 +6,11 @@ import { Component } from '@angular/core';
   template: `
     <div class="upload-container">
       <h1>Upload new application</h1>
-      
+
       <div class="upload-area">
-        <div class="upload-icon">⬆️</div>
+        <div class="upload-icon">
+          <img src="assets/upload-icon.png">
+        </div>
         <button class="choose-file">Choose file<span class="file-type">.zip</span></button>
         <div class="separator">OR</div>
         <div class="git-clone">
