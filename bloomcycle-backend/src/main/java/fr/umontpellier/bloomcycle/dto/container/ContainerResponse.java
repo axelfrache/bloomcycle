@@ -3,9 +3,11 @@ package fr.umontpellier.bloomcycle.dto.container;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import lombok.Builder;
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 @Data
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ContainerResponse {
     private String message;
     private String status;
@@ -22,7 +24,7 @@ public class ContainerResponse {
     public static ContainerResponse pending(String operation) {
         return ContainerResponse.builder()
                 .status("PENDING")
-                .message(String.format("Project %s initiated", operation))
+                .message(String.format("Project %s operation initiated", operation))
                 .build();
     }
 
