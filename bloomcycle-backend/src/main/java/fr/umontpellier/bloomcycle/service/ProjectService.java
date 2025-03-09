@@ -51,7 +51,6 @@ public class ProjectService {
         var project = new Project();
         project.setName(projectName);
         project.setOwner(user);
-        project.setStatus("Initialized");
         
         return projectRepository.save(project);
     }
@@ -113,5 +112,9 @@ public class ProjectService {
         } catch (Exception e) {
             throw new RuntimeException("Error deleting project: " + e.getMessage(), e);
         }
+    }
+
+    public List<Project> getAllProjects() {
+        return projectRepository.findAll();
     }
 }

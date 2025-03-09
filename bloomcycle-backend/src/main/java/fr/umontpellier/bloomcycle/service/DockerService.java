@@ -12,6 +12,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
+import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
+import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
+
 @Service
 @Slf4j
 public class DockerService {
@@ -21,10 +24,8 @@ public class DockerService {
 
     private final ExecutorService dockerExecutor = Executors.newFixedThreadPool(10);
 
-    public enum ContainerStatus {
-        RUNNING,
-        STOPPED,
-        ERROR
+    public CompletableFuture<ContainerStatus> executeOperation(Long projectId, ContainerOperation operation) {
+        return executeDockerCompose(projectId, operation.getCommand());
     }
 
     private CompletableFuture<ContainerStatus> executeDockerCompose(Long projectId, String command) {

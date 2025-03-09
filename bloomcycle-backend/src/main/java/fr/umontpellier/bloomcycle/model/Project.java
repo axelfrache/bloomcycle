@@ -1,17 +1,14 @@
 package fr.umontpellier.bloomcycle.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import lombok.Data;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter
-@Setter
+@Data
 @Table(name = "projects")
 public class Project {
 
@@ -22,9 +19,6 @@ public class Project {
     @Column(nullable = false)
     private String name;
 
-    private String status;
-
-    @JsonManagedReference
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User owner;
