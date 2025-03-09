@@ -13,6 +13,8 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import fr.umontpellier.bloomcycle.service.ProjectTypeAnalyzer.TechnologyStack;
+
 @Service
 public class ProjectService {
 
@@ -20,13 +22,17 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final FileService fileService;
     private final GitService gitService;
+    private final ProjectTypeAnalyzer projectAnalyzer;
+    private final DockerComposeGenerator dockerComposeGenerator;
 
     @Autowired
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository, FileService fileService, GitService gitService) {
+    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository, FileService fileService, GitService gitService, ProjectTypeAnalyzer projectAnalyzer, DockerComposeGenerator dockerComposeGenerator) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.fileService = fileService;
         this.gitService = gitService;
+        this.projectAnalyzer = projectAnalyzer;
+        this.dockerComposeGenerator = dockerComposeGenerator;
     }
 
     public List<Project> getProjectsByUserId(Long userId) {
@@ -50,6 +56,19 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    private void analyzeAndSetupProject(String projectPath) {
+        try {
+            var technology = projectAnalyzer.analyzeTechnology(projectPath);
+            var existingDockerCompose = projectAnalyzer.findContainerization(projectPath);
+            
+            if (existingDockerCompose.isEmpty() && technology != TechnologyStack.UNKNOWN) {
+                dockerComposeGenerator.generateDockerCompose(projectPath, technology);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
+        }
+    }
+
     public Project initializeProjectFromGit(String projectName, String gitUrl, Long userId) {
         try {
             var project = createProject(projectName, userId);
@@ -57,6 +76,8 @@ public class ProjectService {
             
             Files.createDirectories(Paths.get(projectPath));
             gitService.cloneRepository(gitUrl, projectPath);
+            
+            analyzeAndSetupProject(projectPath);
 
             return project;
         } catch (Exception e) {
@@ -72,6 +93,8 @@ public class ProjectService {
             
             Files.createDirectories(targetPath);
             fileService.extractZipFile(sourceZip, targetPath);
+            
+            analyzeAndSetupProject(projectPath);
 
             return project;
         } catch (Exception e) {
