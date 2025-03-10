@@ -2,34 +2,43 @@ package fr.umontpellier.bloomcycle.controller;
 
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
+import fr.umontpellier.bloomcycle.security.JwtService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Hidden;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Hidden
 @RestController
 @RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
-
-    @Autowired
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+    private final JwtService jwtService;
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        var createdUser = userService.registerUser(user);
-        return ResponseEntity.ok(createdUser);
-    }
+    public ResponseEntity<User> registerUser(@RequestBody User user) {
+        try {
+            log.info("Registering new user with email: {}", user.getEmail());
 
-    @PostMapping("/login")
-    public ResponseEntity<User> loginUser(@RequestParam String email, @RequestParam String password) {
-        var authenticatedUser = userService.loginUser(email, password);
-        return ResponseEntity.ok(authenticatedUser);
+            if (user.getEmail() == null || user.getPassword() == null) {
+                log.error("Missing required fields");
+                return ResponseEntity.badRequest().build();
+            }
+
+            var registeredUser = userService.registerUser(user);
+            log.info("User registered successfully: {}", registeredUser.getEmail());
+
+            return ResponseEntity.ok(registeredUser);
+        } catch (RuntimeException e) {
+            log.error("Registration error: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @GetMapping("/me")

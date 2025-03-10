@@ -1,6 +1,7 @@
 package fr.umontpellier.bloomcycle.repository;
 
 import fr.umontpellier.bloomcycle.model.Project;
+import fr.umontpellier.bloomcycle.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -17,4 +18,6 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     Optional<Project> findByIdAndOwnerId(Long projectId, Long ownerId);
 
     Optional<Project> findByIdAndOwnerUsername(Long projectId, String username);
+
+    List<Project> findByOwner(User owner);
 }

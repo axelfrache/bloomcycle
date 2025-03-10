@@ -1,9 +1,13 @@
 package fr.umontpellier.bloomcycle.service;
 
+import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.repository.ProjectRepository;
 import fr.umontpellier.bloomcycle.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
@@ -16,6 +20,8 @@ import org.springframework.web.multipart.MultipartFile;
 import fr.umontpellier.bloomcycle.service.ProjectTypeAnalyzer.TechnologyStack;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
@@ -25,28 +31,29 @@ public class ProjectService {
     private final ProjectTypeAnalyzer projectAnalyzer;
     private final DockerComposeGenerator dockerComposeGenerator;
 
-    @Autowired
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository, FileService fileService, GitService gitService, ProjectTypeAnalyzer projectAnalyzer, DockerComposeGenerator dockerComposeGenerator) {
-        this.projectRepository = projectRepository;
-        this.userRepository = userRepository;
-        this.fileService = fileService;
-        this.gitService = gitService;
-        this.projectAnalyzer = projectAnalyzer;
-        this.dockerComposeGenerator = dockerComposeGenerator;
-    }
-
     public List<Project> getProjectsByUserId(Long userId) {
         return projectRepository.findByOwnerId(userId);
     }
 
-    public Project getProjectById(Long projectId) {
-        return projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
+    public Project getProjectById(Long id) {
+        return projectRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+    }
+
+    public List<Project> getProjectsByUser(User user) {
+        return projectRepository.findByOwner(user);
+    }
+
+    public List<Project> getCurrentUserProjects() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var currentUser = (User) authentication.getPrincipal();
+        log.info("Getting projects for user: {}", currentUser.getEmail());
+        return getProjectsByUser(currentUser);
     }
 
     private Project createProject(String projectName, Long userId) {
         var user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
 
         var project = new Project();
         project.setName(projectName);

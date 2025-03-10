@@ -3,6 +3,7 @@ package fr.umontpellier.bloomcycle.controller;
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
 import fr.umontpellier.bloomcycle.model.Project;
+import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
 import fr.umontpellier.bloomcycle.service.DockerService;
@@ -16,6 +17,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpStatus;
@@ -39,6 +42,15 @@ public class ProjectController {
     public ProjectController(ProjectService projectService, DockerService dockerService) {
         this.projectService = projectService;
         this.dockerService = dockerService;
+    }
+
+    private void checkProjectOwnership(Project project) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var currentUser = (User) authentication.getPrincipal();
+        
+        if (!project.getOwner().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("You don't have permission to access this project");
+        }
     }
 
     @Operation(
@@ -101,8 +113,12 @@ public class ProjectController {
     public ResponseEntity<ProjectResponse> getProject(@PathVariable Long id) {
         try {
             var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+            
             var containerStatus = dockerService.getProjectStatus(id);
             return ResponseEntity.ok(ProjectResponse.fromProject(project, containerStatus));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
         }
@@ -148,15 +164,13 @@ public class ProjectController {
     @PostMapping("/{id}/start")
     public ResponseEntity<ContainerResponse> startProject(@PathVariable Long id) {
         try {
-            projectService.getProjectById(id);
-            dockerService.executeOperation(id, ContainerOperation.START)
-                .thenAccept(status -> {
-                    if (status == ContainerStatus.ERROR) {
-                        throw new RuntimeException("Failed to start project");
-                    }
-                });
-            return ResponseEntity.accepted()
-                .body(ContainerResponse.pending("start"));
+            Project project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+            
+            dockerService.startProject(id);
+            return ResponseEntity.ok(ContainerResponse.success("start"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ContainerResponse.error("start", e.getMessage()));
@@ -217,9 +231,13 @@ public class ProjectController {
     @GetMapping("/{id}/status")
     public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable Long id) {
         try {
-            projectService.getProjectById(id);
+            Project project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+            
             var status = dockerService.getProjectStatus(id);
             return ResponseEntity.ok(ContainerResponse.fromStatus(status));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ContainerResponse.error("get status", e.getMessage()));

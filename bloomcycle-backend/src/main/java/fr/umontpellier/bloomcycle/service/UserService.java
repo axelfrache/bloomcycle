@@ -2,20 +2,32 @@ package fr.umontpellier.bloomcycle.service;
 
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
-public class UserService {
+@Slf4j
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Autowired
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    @Override
+    public User loadUserByUsername(String email) throws UsernameNotFoundException {
+        log.info("Attempting to load user with email: {}", email);
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    log.error("User not found with email: {}", email);
+                    return new UsernameNotFoundException("User not found with email: " + email);
+                });
     }
 
     public User registerUser(User user) {
@@ -28,9 +40,17 @@ public class UserService {
     }
 
     public User loginUser(String email, String password) {
+        log.info("Attempting to login user with email: {}", email);
         return userRepository.findByEmail(email)
-            .filter(user -> passwordEncoder.matches(password, user.getPassword()))
-            .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+            .filter(user -> {
+                boolean matches = passwordEncoder.matches(password, user.getPassword());
+                log.info("Password match result for {}: {}", email, matches);
+                return matches;
+            })
+            .orElseThrow(() -> {
+                log.error("Invalid credentials for email: {}", email);
+                return new RuntimeException("Invalid email or password");
+            });
     }
 
     public User getUserByEmail(String email) {
@@ -62,5 +82,13 @@ public class UserService {
     public void deleteUser(Long userId) {
         var user = getUserById(userId);
         userRepository.delete(user);
+    }
+
+    public User save(User user) {
+        return userRepository.save(user);
+    }
+
+    public boolean existsByEmail(String email) {
+        return userRepository.findByEmail(email).isPresent();
     }
 }
