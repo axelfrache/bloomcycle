@@ -4,7 +4,6 @@ import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
@@ -14,11 +13,9 @@ import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
