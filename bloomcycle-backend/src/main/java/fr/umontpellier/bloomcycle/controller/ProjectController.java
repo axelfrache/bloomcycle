@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -22,8 +21,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
@@ -32,49 +31,69 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/projects")
 @Tag(name = "Projects", description = "Project management endpoints")
+@RequiredArgsConstructor
+@Slf4j
 public class ProjectController {
 
     private final ProjectService projectService;
     private final DockerService dockerService;
-    private static final Logger log = LoggerFactory.getLogger(ProjectController.class);
 
-    @Autowired
-    public ProjectController(ProjectService projectService, DockerService dockerService) {
-        this.projectService = projectService;
-        this.dockerService = dockerService;
+    @PostMapping("/git")
+    public ResponseEntity<Project> createProjectFromGit(
+            @RequestParam String projectName,
+            @RequestParam String gitUrl) {
+        try {
+            var project = projectService.initializeProjectFromGit(projectName, gitUrl);
+            return ResponseEntity.ok(project);
+        } catch (Exception e) {
+            log.error("Error creating project from git: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/zip")
+    public ResponseEntity<Project> createProjectFromZip(
+            @RequestParam String projectName,
+            @RequestParam("file") MultipartFile sourceZip) {
+        try {
+            var project = projectService.initializeProjectFromZip(projectName, sourceZip);
+            return ResponseEntity.ok(project);
+        } catch (Exception e) {
+            log.error("Error creating project from zip: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     private void checkProjectOwnership(Project project) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         var currentUser = (User) authentication.getPrincipal();
-        
+
         if (!project.getOwner().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("You don't have permission to access this project");
         }
     }
 
     @Operation(
-        summary = "Create a new project",
-        description = "Create a project from either a Git repository or a ZIP file"
+            summary = "Create a new project",
+            description = "Create a project from either a Git repository or a ZIP file"
     )
     @ApiResponse(
-        responseCode = "200",
-        description = "Project created successfully",
-        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
+            responseCode = "200",
+            description = "Project created successfully",
+            content = @Content(schema = @Schema(implementation = ProjectResponse.class))
     )
     @ApiResponse(responseCode = "400", description = "Invalid input")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> createProject(
             @Parameter(description = "Project name") @RequestParam("name") String name,
-            @Parameter(description = "User ID") @RequestParam("userId") Long userId,
             @Parameter(description = "Git repository URL") @RequestParam(value = "gitUrl", required = false) String gitUrl,
             @Parameter(description = "Source code as ZIP file") @RequestParam(value = "sourceZip", required = false) MultipartFile sourceZip) {
         try {
             Project project;
             if (gitUrl != null && !gitUrl.isEmpty()) {
-                project = projectService.initializeProjectFromGit(name, gitUrl, userId);
+                project = projectService.initializeProjectFromGit(name, gitUrl);
             } else if (sourceZip != null && !sourceZip.isEmpty()) {
-                project = projectService.initializeProjectFromZip(name, sourceZip, userId);
+                project = projectService.initializeProjectFromZip(name, sourceZip);
             } else {
                 return ResponseEntity.badRequest().body(Map.of(
                         "error", "You must provide either gitUrl or a ZIP file"
@@ -86,6 +105,24 @@ public class ProjectController {
                     "error", e.getMessage(),
                     "details", e.getCause() != null ? e.getCause().getMessage() : "No additional details"
             ));
+        }
+    }
+
+    @Operation(summary = "Get current user's projects")
+    @GetMapping("/me")
+    public ResponseEntity<List<ProjectResponse>> getCurrentUserProjects() {
+        try {
+            var projects = projectService.getCurrentUserProjects()
+                    .stream()
+                    .map(project -> {
+                        var containerStatus = dockerService.getProjectStatus(project.getId());
+                        return ProjectResponse.fromProject(project, containerStatus);
+                    })
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(projects);
+        } catch (Exception e) {
+            log.error("Error getting current user's projects", e);
+            return ResponseEntity.badRequest().body(null);
         }
     }
 
@@ -114,7 +151,7 @@ public class ProjectController {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
-            
+
             var containerStatus = dockerService.getProjectStatus(id);
             return ResponseEntity.ok(ProjectResponse.fromProject(project, containerStatus));
         } catch (AccessDeniedException e) {
@@ -147,7 +184,7 @@ public class ProjectController {
     @ApiResponse(responseCode = "404", description = "Project not found")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(
-            @Parameter(description = "ID of the project to delete") 
+            @Parameter(description = "ID of the project to delete")
             @PathVariable Long id) {
         try {
             projectService.deleteProject(id);
@@ -164,16 +201,16 @@ public class ProjectController {
     @PostMapping("/{id}/start")
     public ResponseEntity<ContainerResponse> startProject(@PathVariable Long id) {
         try {
-            Project project = projectService.getProjectById(id);
+            var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
-            
+
             dockerService.startProject(id);
             return ResponseEntity.ok(ContainerResponse.success("start"));
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ContainerResponse.error("start", e.getMessage()));
+                    .body(ContainerResponse.error("start", e.getMessage()));
         }
     }
 
@@ -186,16 +223,16 @@ public class ProjectController {
         try {
             projectService.getProjectById(id);
             dockerService.executeOperation(id, ContainerOperation.STOP)
-                .thenAccept(status -> {
-                    if (status == ContainerStatus.ERROR) {
-                        throw new RuntimeException("Failed to stop project");
-                    }
-                });
+                    .thenAccept(status -> {
+                        if (status == ContainerStatus.ERROR) {
+                            throw new RuntimeException("Failed to stop project");
+                        }
+                    });
             return ResponseEntity.accepted()
-                .body(ContainerResponse.pending("stop"));
+                    .body(ContainerResponse.pending("stop"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ContainerResponse.error("stop", e.getMessage()));
+                    .body(ContainerResponse.error("stop", e.getMessage()));
         }
     }
 
@@ -208,39 +245,39 @@ public class ProjectController {
         try {
             projectService.getProjectById(id);
             dockerService.executeOperation(id, ContainerOperation.RESTART)
-                .thenAccept(status -> {
-                    if (status == ContainerStatus.ERROR) {
-                        throw new RuntimeException("Failed to restart project");
-                    }
-                });
+                    .thenAccept(status -> {
+                        if (status == ContainerStatus.ERROR) {
+                            throw new RuntimeException("Failed to restart project");
+                        }
+                    });
             return ResponseEntity.accepted()
-                .body(ContainerResponse.pending("restart"));
+                    .body(ContainerResponse.pending("restart"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ContainerResponse.error("restart", e.getMessage()));
+                    .body(ContainerResponse.error("restart", e.getMessage()));
         }
     }
 
     @Operation(summary = "Get project containers status")
     @ApiResponse(
-        responseCode = "200", 
-        description = "Project status retrieved successfully",
-        content = @Content(schema = @Schema(implementation = ContainerResponse.class))
+            responseCode = "200",
+            description = "Project status retrieved successfully",
+            content = @Content(schema = @Schema(implementation = ContainerResponse.class))
     )
     @ApiResponse(responseCode = "404", description = "Project not found")
     @GetMapping("/{id}/status")
     public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable Long id) {
         try {
-            Project project = projectService.getProjectById(id);
+            var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
-            
+
             var status = dockerService.getProjectStatus(id);
             return ResponseEntity.ok(ContainerResponse.fromStatus(status));
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ContainerResponse.error("get status", e.getMessage()));
+                    .body(ContainerResponse.error("get status", e.getMessage()));
         }
     }
 }

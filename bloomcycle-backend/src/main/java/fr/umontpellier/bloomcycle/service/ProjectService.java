@@ -37,7 +37,7 @@ public class ProjectService {
 
     public Project getProjectById(Long id) {
         return projectRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
 
     public List<Project> getProjectsByUser(User user) {
@@ -51,14 +51,14 @@ public class ProjectService {
         return getProjectsByUser(currentUser);
     }
 
-    private Project createProject(String projectName, Long userId) {
-        var user = userRepository.findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+    private Project createProject(String projectName) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var currentUser = (User) authentication.getPrincipal();
 
         var project = new Project();
         project.setName(projectName);
-        project.setOwner(user);
-        
+        project.setOwner(currentUser);
+
         return projectRepository.save(project);
     }
 
@@ -66,23 +66,22 @@ public class ProjectService {
         try {
             var technology = projectAnalyzer.analyzeTechnology(projectPath);
             var existingDockerCompose = projectAnalyzer.findContainerization(projectPath);
-            
-            if (existingDockerCompose.isEmpty() && technology != TechnologyStack.UNKNOWN) {
+
+            if (existingDockerCompose.isEmpty() && technology != TechnologyStack.UNKNOWN)
                 dockerComposeGenerator.generateDockerCompose(projectPath, technology);
-            }
         } catch (Exception e) {
             throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
         }
     }
 
-    public Project initializeProjectFromGit(String projectName, String gitUrl, Long userId) {
+    public Project initializeProjectFromGit(String projectName, String gitUrl) {
         try {
-            var project = createProject(projectName, userId);
+            var project = createProject(projectName);
             var projectPath = fileService.getProjectStoragePath(project.getId());
-            
+
             Files.createDirectories(Paths.get(projectPath));
             gitService.cloneRepository(gitUrl, projectPath);
-            
+
             analyzeAndSetupProject(projectPath);
 
             return project;
@@ -91,15 +90,15 @@ public class ProjectService {
         }
     }
 
-    public Project initializeProjectFromZip(String projectName, MultipartFile sourceZip, Long userId) {
+    public Project initializeProjectFromZip(String projectName, MultipartFile sourceZip) {
         try {
-            var project = createProject(projectName, userId);
+            var project = createProject(projectName);
             var projectPath = fileService.getProjectStoragePath(project.getId());
             var targetPath = Paths.get(projectPath);
-            
+
             Files.createDirectories(targetPath);
             fileService.extractZipFile(sourceZip, targetPath);
-            
+
             analyzeAndSetupProject(projectPath);
 
             return project;
@@ -112,9 +111,9 @@ public class ProjectService {
         try {
             var project = getProjectById(projectId);
             var projectPath = fileService.getProjectStoragePath(projectId);
-            
+
             fileService.deleteProjectDirectory(projectPath);
-            
+
             projectRepository.delete(project);
         } catch (Exception e) {
             throw new RuntimeException("Error deleting project: " + e.getMessage(), e);
