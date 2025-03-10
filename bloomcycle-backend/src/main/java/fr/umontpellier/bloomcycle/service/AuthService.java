@@ -37,11 +37,7 @@ public class AuthService {
         var savedUser = userService.save(user);
         var token = jwtService.generateToken(savedUser);
 
-        return AuthResponse.builder()
-                .token(token)
-                .email(savedUser.getEmail())
-                .username(savedUser.getUsername())
-                .build();
+        return buildAuthResponse(savedUser, token);
     }
 
     public AuthResponse authenticate(LoginRequest request) {
@@ -49,12 +45,14 @@ public class AuthService {
         
         var user = userService.loadUserByUsername(request.getEmail());
         
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
             throw new InvalidCredentialsException();
-        }
 
         var token = jwtService.generateToken(user);
+        return buildAuthResponse(user, token);
+    }
 
+    private AuthResponse buildAuthResponse(User user, String token) {
         return AuthResponse.builder()
                 .token(token)
                 .email(user.getEmail())

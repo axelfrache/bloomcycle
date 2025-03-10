@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
 
 @Service
 @Slf4j
@@ -30,43 +31,14 @@ public class UserService implements UserDetailsService {
                 });
     }
 
-    public User registerUser(User user) {
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already registered");
-        }
-
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.save(user);
-    }
-
-    public User loginUser(String email, String password) {
-        log.info("Attempting to login user with email: {}", email);
-        return userRepository.findByEmail(email)
-            .filter(user -> {
-                boolean matches = passwordEncoder.matches(password, user.getPassword());
-                log.info("Password match result for {}: {}", email, matches);
-                return matches;
-            })
-            .orElseThrow(() -> {
-                log.error("Invalid credentials for email: {}", email);
-                return new RuntimeException("Invalid email or password");
-            });
-    }
-
     public User getUserByEmail(String email) {
         return userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
     }
 
     public User getUserById(Long id) {
         return userRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
-    }
-
-    public boolean validateCredentials(String email, String password) {
-        return userRepository.findByEmail(email)
-            .map(user -> passwordEncoder.matches(password, user.getPassword()))
-            .orElse(false);
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
     }
 
     public User updateUser(Long userId, User updatedUser) {

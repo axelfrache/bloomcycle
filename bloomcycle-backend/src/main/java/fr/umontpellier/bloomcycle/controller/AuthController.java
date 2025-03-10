@@ -5,14 +5,11 @@ import fr.umontpellier.bloomcycle.dto.auth.LoginRequest;
 import fr.umontpellier.bloomcycle.dto.auth.RegisterRequest;
 import fr.umontpellier.bloomcycle.exception.EmailAlreadyExistsException;
 import fr.umontpellier.bloomcycle.exception.InvalidCredentialsException;
-import fr.umontpellier.bloomcycle.security.JwtService;
 import fr.umontpellier.bloomcycle.service.AuthService;
-import fr.umontpellier.bloomcycle.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,9 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
-    private final UserService userService;
     private final AuthService authService;
 
     @PostMapping("/register")
