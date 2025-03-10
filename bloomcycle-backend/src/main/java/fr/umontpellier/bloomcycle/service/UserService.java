@@ -70,7 +70,7 @@ public class UserService implements UserDetailsService {
     }
 
     public User updateUser(Long userId, User updatedUser) {
-        var user = getUserById(userId);
+        User user = getUserById(userId);
 
         user.setUsername(updatedUser.getUsername());
         user.setEmail(updatedUser.getEmail());
@@ -80,7 +80,7 @@ public class UserService implements UserDetailsService {
     }
 
     public void deleteUser(Long userId) {
-        var user = getUserById(userId);
+        User user = getUserById(userId);
         userRepository.delete(user);
     }
 
