@@ -257,18 +257,41 @@ public class ProjectController {
         }
     }
 
-    @Operation(summary = "Delete a project")
-    @ApiResponse(responseCode = "204", description = "Project successfully deleted")
-    @ApiResponse(responseCode = "404", description = "Project not found")
+    @Operation(
+        summary = "Delete a project",
+        description = "Delete a project and all its associated resources. Only the project owner can delete it."
+    )
+    @ApiResponse(
+        responseCode = "204",
+        description = "Project successfully deleted"
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "404",
+        description = "Project not found"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(
             @Parameter(description = "ID of the project to delete")
             @PathVariable Long id) {
         try {
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
             projectService.deleteProject(id);
             return ResponseEntity.noContent().build();
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            log.error("Error deleting project {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

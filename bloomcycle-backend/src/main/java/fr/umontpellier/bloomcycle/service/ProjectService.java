@@ -18,6 +18,7 @@ import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 import fr.umontpellier.bloomcycle.service.ProjectTypeAnalyzer.TechnologyStack;
+import fr.umontpellier.bloomcycle.exception.UnauthorizedAccessException;
 
 @Service
 @Slf4j
@@ -110,10 +111,15 @@ public class ProjectService {
     public void deleteProject(Long projectId) {
         try {
             var project = getProjectById(projectId);
+            
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            var currentUser = (User) authentication.getPrincipal();
+            if (!project.getOwner().getId().equals(currentUser.getId())) {
+                throw new UnauthorizedAccessException("You don't have permission to delete this project");
+            }
+
             var projectPath = fileService.getProjectStoragePath(projectId);
-
             fileService.deleteProjectDirectory(projectPath);
-
             projectRepository.delete(project);
         } catch (Exception e) {
             throw new RuntimeException("Error deleting project: " + e.getMessage(), e);
