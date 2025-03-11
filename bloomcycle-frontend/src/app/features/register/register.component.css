@@ -62,3 +62,8 @@ h2 {
   color: #666;
   text-decoration: none;
 }
+
+.name-icon {
+  height: 24px;
+  width: 24px;
+}
