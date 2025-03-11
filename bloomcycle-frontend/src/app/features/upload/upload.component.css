@@ -1,6 +1,5 @@
 h1 {
-  color: #4CAF50;
-  text-align: center;
+  margin-bottom: 40px;
 }
 
 .upload-container {
@@ -20,8 +19,9 @@ h1 {
   gap: 20px;
 }
 
-.upload-icon {
-  font-size: 48px;
+.upload-icon img {
+  width: 80px;
+  height: auto;
 }
 
 .choose-file {
