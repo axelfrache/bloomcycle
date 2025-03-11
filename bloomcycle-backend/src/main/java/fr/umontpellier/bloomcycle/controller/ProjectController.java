@@ -2,6 +2,7 @@ package fr.umontpellier.bloomcycle.controller;
 
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
+import fr.umontpellier.bloomcycle.dto.error.ErrorResponse;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
@@ -23,6 +24,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.List;
 import java.util.Map;
@@ -38,10 +41,28 @@ public class ProjectController {
     private final ProjectService projectService;
     private final DockerService dockerService;
 
+    @Operation(
+        summary = "Create project from Git",
+        description = "Initialize a new project from a Git repository"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project created successfully",
+        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Internal server error while creating project"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @PostMapping("/git")
     public ResponseEntity<Project> createProjectFromGit(
-            @RequestParam String projectName,
-            @RequestParam String gitUrl) {
+            @Parameter(description = "Name of the project") @RequestParam String projectName,
+            @Parameter(description = "Git repository URL") @RequestParam String gitUrl) {
         try {
             var project = projectService.initializeProjectFromGit(projectName, gitUrl);
             return ResponseEntity.ok(project);
@@ -51,10 +72,28 @@ public class ProjectController {
         }
     }
 
+    @Operation(
+        summary = "Create project from ZIP",
+        description = "Initialize a new project from a ZIP file containing the source code"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project created successfully",
+        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Internal server error while creating project"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @PostMapping("/zip")
     public ResponseEntity<Project> createProjectFromZip(
-            @RequestParam String projectName,
-            @RequestParam("file") MultipartFile sourceZip) {
+            @Parameter(description = "Name of the project") @RequestParam String projectName,
+            @Parameter(description = "ZIP file containing project source code") @RequestParam("file") MultipartFile sourceZip) {
         try {
             var project = projectService.initializeProjectFromZip(projectName, sourceZip);
             return ResponseEntity.ok(project);
@@ -74,15 +113,24 @@ public class ProjectController {
     }
 
     @Operation(
-            summary = "Create a new project",
-            description = "Create a project from either a Git repository or a ZIP file"
+        summary = "Create a new project",
+        description = "Create a project from either a Git repository or a ZIP file"
     )
     @ApiResponse(
-            responseCode = "200",
-            description = "Project created successfully",
-            content = @Content(schema = @Schema(implementation = ProjectResponse.class))
+        responseCode = "200",
+        description = "Project created successfully",
+        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
     )
-    @ApiResponse(responseCode = "400", description = "Invalid input")
+    @ApiResponse(
+        responseCode = "400",
+        description = "Invalid input",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> createProject(
             @Parameter(description = "Project name") @RequestParam("name") String name,
@@ -108,7 +156,35 @@ public class ProjectController {
         }
     }
 
-    @Operation(summary = "Get current user's projects")
+    @Operation(
+        summary = "Get current user's projects",
+        description = "Retrieves all projects belonging to the authenticated user with their current container status"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Projects successfully retrieved",
+        content = @Content(
+            mediaType = "application/json",
+            array = @ArraySchema(schema = @Schema(implementation = ProjectResponse.class))
+        )
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = ErrorResponse.class)
+        )
+    )
+    @ApiResponse(
+        responseCode = "400",
+        description = "Bad request - Error while retrieving projects",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = ErrorResponse.class)
+        )
+    )
+    @SecurityRequirement(name = "bearer-key")
     @GetMapping("/me")
     public ResponseEntity<List<ProjectResponse>> getCurrentUserProjects() {
         try {
@@ -126,26 +202,28 @@ public class ProjectController {
         }
     }
 
-    @Operation(summary = "Get projects by user ID")
-    @GetMapping("/users/{userId}")
-    public ResponseEntity<List<ProjectResponse>> getUserProjects(
-            @Parameter(description = "ID of the user") @PathVariable Long userId) {
-        try {
-            var projects = projectService.getProjectsByUserId(userId)
-                    .stream()
-                    .map(project -> {
-                        var containerStatus = dockerService.getProjectStatus(project.getId());
-                        return ProjectResponse.fromProject(project, containerStatus);
-                    })
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(projects);
-        } catch (Exception e) {
-            log.error("Error getting projects for user {}", userId, e);
-            return ResponseEntity.badRequest().body(null);
-        }
-    }
-
-    @Operation(summary = "Get project by ID")
+    @Operation(
+        summary = "Get project by ID",
+        description = "Retrieve a specific project by its ID if the authenticated user owns it"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project found and returned",
+        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "404",
+        description = "Project not found"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}")
     public ResponseEntity<ProjectResponse> getProject(@PathVariable Long id) {
         try {
@@ -194,10 +272,28 @@ public class ProjectController {
         }
     }
 
-    @Operation(summary = "Start a project's containers")
-    @ApiResponse(responseCode = "202", description = "Project start initiated")
-    @ApiResponse(responseCode = "404", description = "Project not found")
-    @ApiResponse(responseCode = "500", description = "Error starting project")
+    @Operation(
+        summary = "Start a project's containers",
+        description = "Start all containers associated with the specified project"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project containers started successfully",
+        content = @Content(schema = @Schema(implementation = ContainerResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Error starting project containers"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/start")
     public ResponseEntity<ContainerResponse> startProject(@PathVariable Long id) {
         try {
@@ -214,10 +310,28 @@ public class ProjectController {
         }
     }
 
-    @Operation(summary = "Stop a project's containers")
-    @ApiResponse(responseCode = "202", description = "Project stop initiated")
-    @ApiResponse(responseCode = "404", description = "Project not found")
-    @ApiResponse(responseCode = "500", description = "Error stopping project")
+    @Operation(
+        summary = "Stop a project's containers",
+        description = "Stop all containers associated with the specified project"
+    )
+    @ApiResponse(
+        responseCode = "202",
+        description = "Stop operation accepted",
+        content = @Content(schema = @Schema(implementation = ContainerResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Error stopping project containers"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/stop")
     public ResponseEntity<ContainerResponse> stopProject(@PathVariable Long id) {
         try {
@@ -236,10 +350,28 @@ public class ProjectController {
         }
     }
 
-    @Operation(summary = "Restart a project's containers")
-    @ApiResponse(responseCode = "202", description = "Project restart initiated")
-    @ApiResponse(responseCode = "404", description = "Project not found")
-    @ApiResponse(responseCode = "500", description = "Error restarting project")
+    @Operation(
+        summary = "Restart a project's containers",
+        description = "Restart all containers associated with the specified project"
+    )
+    @ApiResponse(
+        responseCode = "202",
+        description = "Restart operation accepted",
+        content = @Content(schema = @Schema(implementation = ContainerResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Error restarting project containers"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/restart")
     public ResponseEntity<ContainerResponse> restartProject(@PathVariable Long id) {
         try {
@@ -258,13 +390,28 @@ public class ProjectController {
         }
     }
 
-    @Operation(summary = "Get project containers status")
-    @ApiResponse(
-            responseCode = "200",
-            description = "Project status retrieved successfully",
-            content = @Content(schema = @Schema(implementation = ContainerResponse.class))
+    @Operation(
+        summary = "Get project containers status",
+        description = "Get the current status of all containers for a specific project"
     )
-    @ApiResponse(responseCode = "404", description = "Project not found")
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project status retrieved successfully",
+        content = @Content(schema = @Schema(implementation = ContainerResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "404",
+        description = "Project not found"
+    )
+    @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}/status")
     public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable Long id) {
         try {
