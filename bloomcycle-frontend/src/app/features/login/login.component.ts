@@ -14,14 +14,14 @@ import { RouterLink } from '@angular/router';
       <form class="login-form">
         <div class="input-group">
           <label>
-            <i class="user-icon">👤</i>
+            <img src="assets/user-icon.png" alt="👤" class="user-icon">
             <input type="text" placeholder="Username">
           </label>
         </div>
 
         <div class="input-group">
           <label>
-            <i class="lock-icon">🔒</i>
+            <img src="assets/lock-icon.png" alt="🔒" class="lock-icon">
             <input type="password" placeholder="Password">
           </label>
         </div>
