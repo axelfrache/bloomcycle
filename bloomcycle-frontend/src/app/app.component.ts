@@ -21,10 +21,6 @@ import {RouterOutlet, RouterLink, RouterLinkActive} from '@angular/router';
           <a routerLink="/upload" routerLinkActive="active" class="nav-link">
             <img src="assets/upload-icon.png" alt="upload"> UPLOAD NEW APP
           </a>
-          <a routerLink="/login" routerLinkActive="active" class="nav-link">
-<!--            <img src="assets/upload-icon.png" alt="upload"> UPLOAD NEW APP-->
-            LOGIN
-          </a>
         </div>
       </nav>
     </header>
