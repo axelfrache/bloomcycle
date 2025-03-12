@@ -1,0 +1,64 @@
+services:
+  frontend:
+    build: ./bloomcycle-frontend
+    container_name: bloomcycle-frontend
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./bloomcycle-frontend:/angular-app
+      - /angular-app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+    networks:
+      - bloomcycle-network
+    command: ["npm", "run", "start"]
+
+  backend:
+    build: ./bloomcycle-backend
+    container_name: bloomcycle-backend
+    ports:
+      - "9090:9090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/bloomcycle
+      SPRING_DATASOURCE_USERNAME: bloomuser
+      SPRING_DATASOURCE_PASSWORD: bloompassword
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+    volumes:
+      - bloomcycle_data:/data/bloomcycle
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - bloomcycle-network
+    restart: on-failure
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_DATABASE: bloomcycle
+      MYSQL_USER: bloomuser
+      MYSQL_PASSWORD: bloompassword
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - bloomcycle-network
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -u root -prootpassword"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql-data:
+  bloomcycle_data:
+
+networks:
+  bloomcycle-network:
+    driver: bridge
