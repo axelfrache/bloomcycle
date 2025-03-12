@@ -3,12 +3,14 @@ package fr.umontpellier.bloomcycle.controller;
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
 import fr.umontpellier.bloomcycle.dto.error.ErrorResponse;
+import fr.umontpellier.bloomcycle.dto.ProjectDetailResponse;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
 import fr.umontpellier.bloomcycle.service.DockerService;
 import fr.umontpellier.bloomcycle.service.ProjectService;
+import fr.umontpellier.bloomcycle.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,6 +32,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -40,6 +43,7 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final DockerService dockerService;
+    private final FileService fileService;
 
     @Operation(
         summary = "Create project from Git",
@@ -323,8 +327,9 @@ public class ProjectController {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
 
-            dockerService.startProject(id);
-            return ResponseEntity.ok(ContainerResponse.success("start"));
+            var containerInfo = dockerService.executeOperation(id, ContainerOperation.START)
+                    .get(30, TimeUnit.SECONDS);  // Timeout après 30 secondes
+            return ResponseEntity.ok(ContainerResponse.fromContainerInfo(containerInfo, "start"));
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
@@ -359,14 +364,10 @@ public class ProjectController {
     public ResponseEntity<ContainerResponse> stopProject(@PathVariable Long id) {
         try {
             projectService.getProjectById(id);
-            dockerService.executeOperation(id, ContainerOperation.STOP)
-                    .thenAccept(status -> {
-                        if (status == ContainerStatus.ERROR) {
-                            throw new RuntimeException("Failed to stop project");
-                        }
-                    });
+            var containerInfo = dockerService.executeOperation(id, ContainerOperation.STOP)
+                    .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
-                    .body(ContainerResponse.pending("stop"));
+                    .body(ContainerResponse.fromContainerInfo(containerInfo, "stop"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("stop", e.getMessage()));
@@ -399,14 +400,10 @@ public class ProjectController {
     public ResponseEntity<ContainerResponse> restartProject(@PathVariable Long id) {
         try {
             projectService.getProjectById(id);
-            dockerService.executeOperation(id, ContainerOperation.RESTART)
-                    .thenAccept(status -> {
-                        if (status == ContainerStatus.ERROR) {
-                            throw new RuntimeException("Failed to restart project");
-                        }
-                    });
+            var containerInfo = dockerService.executeOperation(id, ContainerOperation.RESTART)
+                    .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
-                    .body(ContainerResponse.pending("restart"));
+                    .body(ContainerResponse.fromContainerInfo(containerInfo, "restart"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("restart", e.getMessage()));
@@ -448,6 +445,36 @@ public class ProjectController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("get status", e.getMessage()));
+        }
+    }
+
+    @Operation(
+        summary = "Get project details",
+        description = "Get detailed information about a specific project"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project details retrieved successfully",
+        content = @Content(schema = @Schema(implementation = ProjectDetailResponse.class))
+    )
+    @SecurityRequirement(name = "bearer-key")
+    @GetMapping("/{id}/details")
+    public ResponseEntity<ProjectDetailResponse> getProjectDetails(@PathVariable Long id) {
+        try {
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            var status = dockerService.getProjectStatus(id);
+            var technology = projectService.getProjectTechnology(id);
+            var serverUrl = status == ContainerStatus.RUNNING ? 
+                dockerService.getProjectUrl(id) : null;
+
+            return ResponseEntity.ok(ProjectDetailResponse.fromProject(
+                project, status, serverUrl, technology));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.io.IOException;
 
 import java.util.List;
 
@@ -30,7 +32,6 @@ public class ProjectService {
     private final FileService fileService;
     private final GitService gitService;
     private final ProjectTypeAnalyzer projectAnalyzer;
-    private final DockerComposeGenerator dockerComposeGenerator;
 
     public List<Project> getProjectsByUserId(Long userId) {
         return projectRepository.findByOwnerId(userId);
@@ -63,14 +64,54 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    private void generateDockerfile(String projectPath, TechnologyStack technology) throws IOException {
+        log.info("Generating Dockerfile for project at path: {}", projectPath);
+        String dockerfileContent = switch (technology) {
+            case JAVA_MAVEN -> """
+                FROM maven:3.8-openjdk-17
+                WORKDIR /app
+                COPY . .
+                RUN mvn clean package
+                CMD ["java", "-jar", "target/*.jar"]
+                """;
+            case NODEJS -> """
+                FROM node:20-alpine
+                WORKDIR /app
+                COPY package*.json ./
+                RUN npm install
+                COPY . .
+                EXPOSE 3000
+                CMD ["npm", "start"]
+                """;
+            case PYTHON -> """
+                FROM python:3.9
+                WORKDIR /app
+                COPY requirements.txt .
+                RUN pip install -r requirements.txt
+                COPY . .
+                CMD ["python", "app.py"]
+                """;
+            default -> throw new IllegalArgumentException("Unknown project type");
+        };
+
+        var dockerfilePath = Path.of(projectPath, "Dockerfile");
+        Files.writeString(dockerfilePath, dockerfileContent);
+        log.info("Dockerfile generated successfully at: {}", dockerfilePath);
+    }
+
     private void analyzeAndSetupProject(String projectPath) {
         try {
             var technology = projectAnalyzer.analyzeTechnology(projectPath);
-            var existingDockerCompose = projectAnalyzer.findContainerization(projectPath);
-
-            if (existingDockerCompose.isEmpty() && technology != TechnologyStack.UNKNOWN)
-                dockerComposeGenerator.generateDockerCompose(projectPath, technology);
+            log.info("Technology detected: {}", technology);
+            
+            var dockerfilePath = Path.of(projectPath, "Dockerfile");
+            if (!Files.exists(dockerfilePath)) {
+                generateDockerfile(projectPath, technology);
+            } else {
+                log.info("Using existing Dockerfile from project");
+            }
         } catch (Exception e) {
+            log.error("Error analyzing project: {}", e.getMessage(), e);
             throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
         }
     }
@@ -128,5 +169,15 @@ public class ProjectService {
 
     public List<Project> getAllProjects() {
         return projectRepository.findAll();
+    }
+
+    public boolean hasCustomDockerfile(Long projectId) {
+        var projectPath = fileService.getProjectStoragePath(projectId);
+        return Files.exists(Path.of(projectPath, "Dockerfile"));
+    }
+
+    public String getProjectTechnology(Long projectId) {
+        var projectPath = fileService.getProjectStoragePath(projectId);
+        return projectAnalyzer.analyzeTechnology(projectPath).name();
     }
 }
