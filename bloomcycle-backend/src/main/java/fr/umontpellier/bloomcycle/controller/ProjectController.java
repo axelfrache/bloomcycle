@@ -363,11 +363,15 @@ public class ProjectController {
     @PostMapping("/{id}/stop")
     public ResponseEntity<ContainerResponse> stopProject(@PathVariable Long id) {
         try {
-            projectService.getProjectById(id);
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
             var containerInfo = dockerService.executeOperation(id, ContainerOperation.STOP)
                     .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
                     .body(ContainerResponse.fromContainerInfo(containerInfo, "stop"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("stop", e.getMessage()));
@@ -399,11 +403,15 @@ public class ProjectController {
     @PostMapping("/{id}/restart")
     public ResponseEntity<ContainerResponse> restartProject(@PathVariable Long id) {
         try {
-            projectService.getProjectById(id);
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
             var containerInfo = dockerService.executeOperation(id, ContainerOperation.RESTART)
                     .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
                     .body(ContainerResponse.fromContainerInfo(containerInfo, "restart"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("restart", e.getMessage()));

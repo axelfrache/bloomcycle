@@ -99,8 +99,9 @@ public class ProjectService {
         log.info("Dockerfile generated successfully at: {}", dockerfilePath);
     }
 
-    private void analyzeAndSetupProject(String projectPath) {
+    private void analyzeAndSetupProject(Project project) {
         try {
+            var projectPath = fileService.getProjectStoragePath(project);
             var technology = projectAnalyzer.analyzeTechnology(projectPath);
             log.info("Technology detected: {}", technology);
             
@@ -119,15 +120,16 @@ public class ProjectService {
     public Project initializeProjectFromGit(String projectName, String gitUrl) {
         try {
             var project = createProject(projectName);
-            var projectPath = fileService.getProjectStoragePath(project.getId());
+            var projectPath = fileService.getProjectStoragePath(project);
 
             Files.createDirectories(Paths.get(projectPath));
             gitService.cloneRepository(gitUrl, projectPath);
 
-            analyzeAndSetupProject(projectPath);
+            analyzeAndSetupProject(project);
 
             return project;
         } catch (Exception e) {
+            log.error("Error initializing project: {}", e.getMessage());
             throw new RuntimeException("Error initializing project: " + e.getMessage(), e);
         }
     }
@@ -135,13 +137,13 @@ public class ProjectService {
     public Project initializeProjectFromZip(String projectName, MultipartFile sourceZip) {
         try {
             var project = createProject(projectName);
-            var projectPath = fileService.getProjectStoragePath(project.getId());
+            var projectPath = fileService.getProjectStoragePath(project);
             var targetPath = Paths.get(projectPath);
 
             Files.createDirectories(targetPath);
             fileService.extractZipFile(sourceZip, targetPath);
 
-            analyzeAndSetupProject(projectPath);
+            analyzeAndSetupProject(project);
 
             return project;
         } catch (Exception e) {
@@ -159,7 +161,7 @@ public class ProjectService {
                 throw new UnauthorizedAccessException("You don't have permission to delete this project");
             }
 
-            var projectPath = fileService.getProjectStoragePath(projectId);
+            var projectPath = fileService.getProjectStoragePath(project);
             fileService.deleteProjectDirectory(projectPath);
             projectRepository.delete(project);
         } catch (Exception e) {
@@ -172,12 +174,14 @@ public class ProjectService {
     }
 
     public boolean hasCustomDockerfile(Long projectId) {
-        var projectPath = fileService.getProjectStoragePath(projectId);
+        var project = getProjectById(projectId);
+        var projectPath = fileService.getProjectStoragePath(project);
         return Files.exists(Path.of(projectPath, "Dockerfile"));
     }
 
     public String getProjectTechnology(Long projectId) {
-        var projectPath = fileService.getProjectStoragePath(projectId);
+        var project = getProjectById(projectId);
+        var projectPath = fileService.getProjectStoragePath(project);
         return projectAnalyzer.analyzeTechnology(projectPath).name();
     }
 }

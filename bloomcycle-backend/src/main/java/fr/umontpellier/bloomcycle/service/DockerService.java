@@ -3,6 +3,7 @@ package fr.umontpellier.bloomcycle.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -17,9 +18,11 @@ import java.io.IOException;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
 import fr.umontpellier.bloomcycle.model.container.ContainerInfo;
+import fr.umontpellier.bloomcycle.model.Project;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DockerService {
     
     @Value("${app.storage.path}")
@@ -29,6 +32,12 @@ public class DockerService {
     private String serverHost;
 
     private final ExecutorService dockerExecutor = Executors.newFixedThreadPool(10);
+    private final FileService fileService;
+    private final ProjectService projectService;
+
+    private String getContainerName(Project project) {
+        return "project-" + project.getUuid();
+    }
 
     public CompletableFuture<ContainerInfo> executeOperation(Long projectId, ContainerOperation operation) {
         return switch (operation) {
@@ -57,8 +66,13 @@ public class DockerService {
         return output.toString().trim();
     }
 
-    private void buildImage(String projectPath, Long projectId) throws IOException, InterruptedException {
-        var commandArgs = new String[]{"docker", "build", "-t", "project-" + projectId, projectPath};
+    private void buildImage(Project project) throws IOException, InterruptedException {
+        var projectPath = fileService.getProjectStoragePath(project);
+        var commandArgs = new String[]{
+            "docker", "build", 
+            "-t", getContainerName(project), 
+            projectPath
+        };
         var processBuilder = new ProcessBuilder(commandArgs)
             .directory(new File(projectPath))
             .redirectErrorStream(true);
@@ -66,13 +80,16 @@ public class DockerService {
         try {
             executeDockerCommand(processBuilder);
         } catch (RuntimeException e) {
-            log.error("Docker build failed for project {}", projectId);
+            log.error("Docker build failed for project {}", project.getId());
             throw e;
         }
     }
 
-    private void stopAndRemoveContainer(Long projectId) throws IOException, InterruptedException {
-        var stopCommand = new String[]{"docker", "rm", "-f", "project-" + projectId};
+    private void stopAndRemoveContainer(Project project) throws IOException, InterruptedException {
+        var stopCommand = new String[]{
+            "docker", "rm", "-f", 
+            getContainerName(project)
+        };
         var processBuilder = new ProcessBuilder(stopCommand)
             .redirectErrorStream(true);
         
@@ -80,19 +97,17 @@ public class DockerService {
             executeDockerCommand(processBuilder);
         } catch (RuntimeException e) {
             // Ignorer l'erreur si le conteneur n'existe pas
-            log.debug("Container might not exist for project {}", projectId);
+            log.debug("Container might not exist for project {}", project.getId());
         }
     }
 
-    private String startContainer(Long projectId) throws IOException, InterruptedException {
-        ensureUniqueContainerName(projectId);
-        
+    private String startContainer(Project project) throws IOException, InterruptedException {
         var runCommand = new String[]{
             "docker", "run", "-d",
             "-p", "0:3000",
-            "--name", "project-" + projectId,
+            "--name", getContainerName(project),
             "--restart", "on-failure:3",
-            "project-" + projectId
+            getContainerName(project)
         };
         
         var processBuilder = new ProcessBuilder(runCommand)
@@ -101,11 +116,11 @@ public class DockerService {
         return executeDockerCommand(processBuilder);
     }
 
-    private String getContainerPort(Long projectId) throws IOException, InterruptedException {
+    private String getContainerPort(Project project) throws IOException, InterruptedException {
         var inspectCommand = new String[]{
             "docker", "inspect",
             "--format", "{{(index (index .NetworkSettings.Ports \"3000/tcp\") 0).HostPort}}",
-            "project-" + projectId
+            getContainerName(project)
         };
         
         var processBuilder = new ProcessBuilder(inspectCommand)
@@ -121,7 +136,8 @@ public class DockerService {
     private CompletableFuture<ContainerInfo> startProject(Long projectId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                var projectPath = Path.of(storagePath, "projects", projectId.toString()).toString();
+                var project = projectService.getProjectById(projectId);
+                var projectPath = fileService.getProjectStoragePath(project);
                 var dockerfilePath = Path.of(projectPath, "Dockerfile");
 
                 if (!Files.exists(dockerfilePath)) {
@@ -131,11 +147,11 @@ public class DockerService {
                             .build();
                 }
 
-                buildImage(projectPath, projectId);
-                stopAndRemoveContainer(projectId);
-                startContainer(projectId);
+                buildImage(project);
+                stopAndRemoveContainer(project);
+                startContainer(project);
                 
-                var hostPort = getContainerPort(projectId);
+                var hostPort = getContainerPort(project);
                 var serverUrl = buildServerUrl(hostPort);
                 log.info("Project {} is running at: {}", projectId, serverUrl);
 
@@ -155,7 +171,8 @@ public class DockerService {
     private CompletableFuture<ContainerInfo> stopProject(Long projectId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                stopAndRemoveContainer(projectId);
+                var project = projectService.getProjectById(projectId);
+                stopAndRemoveContainer(project);
                 return ContainerInfo.builder()
                         .status(ContainerStatus.STOPPED)
                         .build();
@@ -171,13 +188,14 @@ public class DockerService {
     private CompletableFuture<ContainerInfo> restartProject(Long projectId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                var restartCommand = new String[]{"docker", "restart", "project-" + projectId};
+                var project = projectService.getProjectById(projectId);
+                var restartCommand = new String[]{"docker", "restart", getContainerName(project)};
                 var processBuilder = new ProcessBuilder(restartCommand)
                     .redirectErrorStream(true);
                 
                 executeDockerCommand(processBuilder);
                 
-                var hostPort = getContainerPort(projectId);
+                var hostPort = getContainerPort(project);
                 var serverUrl = buildServerUrl(hostPort);
                 log.info("Project {} is running at: {}", projectId, serverUrl);
 
@@ -196,9 +214,10 @@ public class DockerService {
 
     public ContainerStatus getProjectStatus(Long projectId) {
         try {
+            var project = projectService.getProjectById(projectId);
             var processBuilder = new ProcessBuilder(
                 "docker", "ps",
-                "--filter", "name=project-" + projectId,
+                "--filter", "name=" + getContainerName(project),
                 "--format", "{{.Status}}"
             ).redirectErrorStream(true);
             
@@ -214,27 +233,12 @@ public class DockerService {
 
     public String getProjectUrl(Long projectId) {
         try {
-            var hostPort = getContainerPort(projectId);
+            var project = projectService.getProjectById(projectId);
+            var hostPort = getContainerPort(project);
             return buildServerUrl(hostPort);
         } catch (Exception e) {
             log.error("Error getting project URL for project {}", projectId, e);
             return null;
-        }
-    }
-
-    private void ensureUniqueContainerName(Long projectId) throws IOException, InterruptedException {
-        var checkCommand = new String[]{
-            "docker", "ps", "-a",
-            "--filter", "name=project-" + projectId,
-            "--format", "{{.Names}}"
-        };
-        
-        var processBuilder = new ProcessBuilder(checkCommand)
-            .redirectErrorStream(true);
-        
-        var output = executeDockerCommand(processBuilder);
-        if (!output.isEmpty()) {
-            stopAndRemoveContainer(projectId);
         }
     }
 }
