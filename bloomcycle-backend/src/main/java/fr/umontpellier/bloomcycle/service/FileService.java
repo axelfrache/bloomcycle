@@ -6,7 +6,6 @@ import fr.umontpellier.bloomcycle.repository.ProjectRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
 import java.io.File;
@@ -15,7 +14,6 @@ import java.nio.file.*;
 import java.util.zip.ZipInputStream;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class FileService {
 

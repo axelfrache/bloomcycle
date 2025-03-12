@@ -6,7 +6,6 @@ import fr.umontpellier.bloomcycle.repository.ProjectRepository;
 import fr.umontpellier.bloomcycle.repository.UserRepository;
 import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +22,6 @@ import fr.umontpellier.bloomcycle.service.ProjectTypeAnalyzer.TechnologyStack;
 import fr.umontpellier.bloomcycle.exception.UnauthorizedAccessException;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class ProjectService {
 
@@ -49,7 +47,6 @@ public class ProjectService {
     public List<Project> getCurrentUserProjects() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         var currentUser = (User) authentication.getPrincipal();
-        log.info("Getting projects for user: {}", currentUser.getEmail());
         return getProjectsByUser(currentUser);
     }
 
@@ -65,7 +62,6 @@ public class ProjectService {
     }
 
     private void generateDockerfile(String projectPath, TechnologyStack technology) throws IOException {
-        log.info("Generating Dockerfile for project at path: {}", projectPath);
         String dockerfileContent = switch (technology) {
             case JAVA_MAVEN -> """
                 FROM maven:3.8-openjdk-17
@@ -96,23 +92,20 @@ public class ProjectService {
 
         var dockerfilePath = Path.of(projectPath, "Dockerfile");
         Files.writeString(dockerfilePath, dockerfileContent);
-        log.info("Dockerfile generated successfully at: {}", dockerfilePath);
     }
 
     private void analyzeAndSetupProject(Project project) {
         try {
             var projectPath = fileService.getProjectStoragePath(project);
             var technology = projectAnalyzer.analyzeTechnology(projectPath);
-            log.info("Technology detected: {}", technology);
-            
+
             var dockerfilePath = Path.of(projectPath, "Dockerfile");
             if (!Files.exists(dockerfilePath)) {
                 generateDockerfile(projectPath, technology);
             } else {
-                log.info("Using existing Dockerfile from project");
+                throw new RuntimeException("Dockerfile already exists in project directory");
             }
         } catch (Exception e) {
-            log.error("Error analyzing project: {}", e.getMessage(), e);
             throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
         }
     }
@@ -129,7 +122,6 @@ public class ProjectService {
 
             return project;
         } catch (Exception e) {
-            log.error("Error initializing project: {}", e.getMessage());
             throw new RuntimeException("Error initializing project: " + e.getMessage(), e);
         }
     }

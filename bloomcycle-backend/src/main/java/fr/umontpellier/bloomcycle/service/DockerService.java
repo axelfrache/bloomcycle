@@ -2,7 +2,6 @@ package fr.umontpellier.bloomcycle.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
 import java.io.File;
@@ -21,7 +20,6 @@ import fr.umontpellier.bloomcycle.model.container.ContainerInfo;
 import fr.umontpellier.bloomcycle.model.Project;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class DockerService {
     
@@ -80,8 +78,7 @@ public class DockerService {
         try {
             executeDockerCommand(processBuilder);
         } catch (RuntimeException e) {
-            log.error("Docker build failed for project {}", project.getId());
-            throw e;
+            throw new RuntimeException("Failed to build image for project " + project.getId(), e);
         }
     }
 
@@ -96,8 +93,7 @@ public class DockerService {
         try {
             executeDockerCommand(processBuilder);
         } catch (RuntimeException e) {
-            // Ignorer l'erreur si le conteneur n'existe pas
-            log.debug("Container might not exist for project {}", project.getId());
+            throw new RuntimeException("Failed to stop and remove container for project " + project.getId(), e);
         }
     }
 
@@ -141,7 +137,6 @@ public class DockerService {
                 var dockerfilePath = Path.of(projectPath, "Dockerfile");
 
                 if (!Files.exists(dockerfilePath)) {
-                    log.error("Dockerfile not found for project {}", projectId);
                     return ContainerInfo.builder()
                             .status(ContainerStatus.ERROR)
                             .build();
@@ -153,14 +148,12 @@ public class DockerService {
                 
                 var hostPort = getContainerPort(project);
                 var serverUrl = buildServerUrl(hostPort);
-                log.info("Project {} is running at: {}", projectId, serverUrl);
 
                 return ContainerInfo.builder()
                         .status(ContainerStatus.RUNNING)
                         .serverUrl(serverUrl)
                         .build();
             } catch (Exception e) {
-                log.error("Error starting project {}", projectId, e);
                 return ContainerInfo.builder()
                         .status(ContainerStatus.ERROR)
                         .build();
@@ -177,7 +170,6 @@ public class DockerService {
                         .status(ContainerStatus.STOPPED)
                         .build();
             } catch (Exception e) {
-                log.error("Error stopping project {}", projectId, e);
                 return ContainerInfo.builder()
                         .status(ContainerStatus.ERROR)
                         .build();
@@ -197,14 +189,12 @@ public class DockerService {
                 
                 var hostPort = getContainerPort(project);
                 var serverUrl = buildServerUrl(hostPort);
-                log.info("Project {} is running at: {}", projectId, serverUrl);
 
                 return ContainerInfo.builder()
                         .status(ContainerStatus.RUNNING)
                         .serverUrl(serverUrl)
                         .build();
             } catch (Exception e) {
-                log.error("Error restarting project {}", projectId, e);
                 return ContainerInfo.builder()
                         .status(ContainerStatus.ERROR)
                         .build();
@@ -226,7 +216,6 @@ public class DockerService {
                 ? ContainerStatus.RUNNING 
                 : ContainerStatus.STOPPED;
         } catch (Exception e) {
-            log.error("Error checking status for project {}", projectId, e);
             return ContainerStatus.ERROR;
         }
     }
@@ -237,7 +226,6 @@ public class DockerService {
             var hostPort = getContainerPort(project);
             return buildServerUrl(hostPort);
         } catch (Exception e) {
-            log.error("Error getting project URL for project {}", projectId, e);
             return null;
         }
     }

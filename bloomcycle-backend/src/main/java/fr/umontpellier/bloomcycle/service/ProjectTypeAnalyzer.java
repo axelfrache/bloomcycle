@@ -1,7 +1,6 @@
 package fr.umontpellier.bloomcycle.service;
 
 import org.springframework.stereotype.Service;
-import lombok.extern.slf4j.Slf4j;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,7 +10,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 @Service
-@Slf4j
 public class ProjectTypeAnalyzer {
 
     public enum TechnologyStack {
@@ -22,19 +20,16 @@ public class ProjectTypeAnalyzer {
     }
 
     public TechnologyStack analyzeTechnology(String projectPath) {
-        log.info("Analyzing project technology at path: {}", projectPath);
-        
         var dockerfile = Path.of(projectPath, "Dockerfile");
         if (Files.exists(dockerfile)) {
             try {
                 var dockerfileContent = Files.readString(dockerfile);
                 var detectedTech = analyzeDockerfile(dockerfileContent);
                 if (detectedTech != TechnologyStack.UNKNOWN) {
-                    log.info("Technology detected from Dockerfile: {}", detectedTech);
                     return detectedTech;
                 }
             } catch (IOException e) {
-                log.warn("Could not read Dockerfile: {}", e.getMessage());
+                throw new RuntimeException("Error reading Dockerfile: " + e.getMessage(), e);
             }
         }
 
@@ -104,7 +99,6 @@ public class ProjectTypeAnalyzer {
 
             return TechnologyStack.UNKNOWN;
         } catch (IOException e) {
-            log.error("Error analyzing project files: {}", e.getMessage());
             return TechnologyStack.UNKNOWN;
         }
     }
