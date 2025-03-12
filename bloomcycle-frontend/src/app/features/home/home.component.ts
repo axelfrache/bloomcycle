@@ -11,59 +11,59 @@ interface Application {
   selector: 'app-home',
   standalone: true,
   imports: [CommonModule],
-
   template: `
-    <div class="home-container">
-
+    <div class="max-w-screen-xl" style="margin: 0 auto; padding: 40px 20px;">
       <button class="logout-btn" (click)="logout()">Logout</button>
+      <h1 class="text-2xl font-semibold" style="margin-bottom: 40px;">Your Projects</h1>
 
-      <h1>Your Projects</h1>
-
-      <table class="applications-table">
+      <table class="w-full bg-white rounded-lg overflow-hidden">
         <thead>
-          <tr>
-            <th>Application</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
+        <tr>
+          <th class="text-left font-bold bg-gray-100 border-2 border-solid border-gray-200" style="padding: 16px;">Application</th>
+          <th class="text-left font-bold bg-gray-100 border-2 border-solid border-gray-200" style="padding: 16px;">Status</th>
+          <th class="text-left font-bold bg-gray-100 border-2 border-solid border-gray-200" style="padding: 16px;">Actions</th>
+        </tr>
         </thead>
         <tbody>
-          @for (app of applications; track app.name) {
-            <tr>
-              <td>{{app.name}}</td>
-              <td [class]="'status-' + app.status.toLowerCase()">{{app.status}}</td>
-              <td class="actions">
-                <button class="action-btn" title="View Details">
-                  <img src="assets/view-icon.png" alt="view">
-                  <span class="action-label">VIEW DETAILS</span>
-                </button>
-                @if (app.status === 'RUNNING') {
-                  <button class="action-btn" title="Restart">
-                    <img src="assets/restart-icon.png" alt="restart">
-                    <span class="action-label">RESTART</span>
-                  </button>
-                  <button class="action-btn" title="Stop">
-                    <img src="assets/stop-icon.png" alt="stop">
-                    <span class="action-label">STOP</span>
-                  </button>
-                } @else if (app.status === 'STOPPED') {
-                  <button class="action-btn" title="Start">
-                    <img src="assets/start-icon.png" alt="start">
-                    <span class="action-label">START</span>
-                  </button>
-                } @else if (app.status === 'CRASHED') {
-                  <button class="action-btn" title="Restart">
-                    <img src="assets/restart-icon.png" alt="restart">
-                    <span class="action-label">RESTART</span>
-                  </button>
-                }
-                <button class="action-btn" title="Delete">
-                  <img src="assets/delete-icon.png" alt="delete">
-                  <span class="action-label">DELETE</span>
-                </button>
-              </td>
-            </tr>
-          }
+        <tr *ngFor="let app of applications">
+          <td class="border-2 border-solid border-gray-200" style="padding: 16px;">{{app.name}}</td>
+          <td [ngClass]="{'bg-green-200': app.status === 'RUNNING', 'bg-yellow-200': app.status === 'STOPPED', 'bg-red-200': app.status === 'CRASHED'}"
+              class="text-left rounded-md border-2 border-solid border-gray-200" style="padding: 8px;">
+            {{app.status}}
+          </td>
+          <td class="flex gap-3 border-2 border-solid border-gray-200" style="padding: 16px;">
+            <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+              <img src="assets/view-icon.png" alt="view" class="w-4 h-4">
+              <span class="text-xs">VIEW DETAILS</span>
+            </button>
+            <ng-container *ngIf="app.status === 'RUNNING'">
+              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+                <img src="assets/restart-icon.png" alt="restart" class="w-4 h-4">
+                <span class="text-xs">RESTART</span>
+              </button>
+              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+                <img src="assets/stop-icon.png" alt="stop" class="w-4 h-4">
+                <span class="text-xs">STOP</span>
+              </button>
+            </ng-container>
+            <ng-container *ngIf="app.status === 'STOPPED'">
+              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+                <img src="assets/start-icon.png" alt="start" class="w-4 h-4">
+                <span class="text-xs">START</span>
+              </button>
+            </ng-container>
+            <ng-container *ngIf="app.status === 'CRASHED'">
+              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+                <img src="assets/restart-icon.png" alt="restart" class="w-4 h-4">
+                <span class="text-xs">RESTART</span>
+              </button>
+            </ng-container>
+            <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+              <img src="assets/delete-icon.png" alt="delete" class="w-4 h-4">
+              <span class="text-xs">DELETE</span>
+            </button>
+          </td>
+        </tr>
         </tbody>
       </table>
     </div>

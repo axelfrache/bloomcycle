@@ -1,6 +1,18 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@plugin 'daisyui';
+
+/* Vos styles personnalisés ici */
+@layer utilities {
+  .custom-shadow {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+}
 
 * {
   margin: 0;

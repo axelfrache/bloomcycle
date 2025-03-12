@@ -8,69 +8,69 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   imports: [RouterLink, FormsModule],
   template: `
-    <div class="register-container">
-      <img src="assets/logo.png" alt="BloomCycle" class="logo">
-      <h1>BloomCycle</h1>
-      <h2>Create a new account</h2>
+    <div class="max-w-sm mx-auto p-6 text-center" style="margin: 0 auto; padding: 20px;">
+      <img src="assets/logo.png" alt="BloomCycle" class="w-20" style="margin: 0 auto;">
+      <h1 class="text-4xl" style="margin-bottom: 10px;">BloomCycle</h1>
+      <h2 class="text-2xl text-gray-600" style="margin-bottom: 30px;">Create a new account</h2>
 
-      <form class="register-form" (ngSubmit)="onSubmit()" #registerForm="ngForm">
-        <div class="input-group">
-          <label>
+      <form (ngSubmit)="onSubmit()" #registerForm="ngForm" class="flex flex-col gap-5">
+        <div class="relative">
+          <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
             <img src="assets/user-icon.png" alt="👤" class="user-icon">
-            <input
-              type="text"
-              placeholder="Username"
-              name="username"
-              [(ngModel)]="registerData.username"
-              required>
+            <input type="text"
+                   placeholder="Username"
+                   name="username"
+                   [(ngModel)]="registerData.username"
+                   class="w-full border-none outline-none bg-transparent text-lg" style="border: none;"
+                   required>
           </label>
         </div>
 
-        <div class="input-group">
-          <label>
+        <div class="relative">
+          <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
             <img src="assets/name-icon.png" alt="📝" class="name-icon">
-            <input
-              type="text"
-              placeholder="Full Name"
-              name="fullName"
-              [(ngModel)]="registerData.fullName"
-              required>
+            <input type="text"
+                   placeholder="Full Name"
+                   name="fullName"
+                   [(ngModel)]="registerData.fullName"
+                   class="w-full border-none outline-none bg-transparent text-lg" style="border: none;"
+                   required>
           </label>
         </div>
 
-        <div class="input-group">
-          <label>
+        <div class="relative">
+          <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
             <img src="assets/email-icon.png" alt="📧" class="email-icon">
-            <input
-              type="email"
-              placeholder="Email"
-              name="email"
-              [(ngModel)]="registerData.email"
-              required>
+            <input type="email"
+                   placeholder="Email"
+                   name="email"
+                   [(ngModel)]="registerData.email"
+                   class="w-full border-none outline-none bg-transparent text-lg" style="border: none;"
+                   required>
           </label>
         </div>
 
-        <div class="input-group">
-          <label>
+        <div class="relative">
+          <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
             <img src="assets/lock-icon.png" alt="🔒" class="lock-icon">
-            <input
-              type="password"
-              placeholder="Password"
-              name="password"
-              [(ngModel)]="registerData.password"
-              required>
+            <input type="password"
+                   placeholder="Password"
+                   name="password"
+                   [(ngModel)]="registerData.password"
+                   class="w-full border-none outline-none bg-transparent text-lg" style="border: none;"
+                   required>
           </label>
         </div>
 
-        <div class="input-group">
-          <label>
-            <img src="assets/lock-icon.png" alt="🔒" class="lock-icon">
-            <input
-              type="password"
-              placeholder="Retype Password"
-              name="confirmPassword"
-              [(ngModel)]="confirmPassword"
-              required>
+        <div class="relative">
+          <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
+            <i class="lock-icon">🔒</i>
+            <input type="password"
+                   placeholder="Retype Password"
+                   name="confirmPassword"
+                   [(ngModel)]="confirmPassword"
+                   class="w-full border-none outline-none bg-transparent text-lg" style="border: none;"
+                   required>
           </label>
         </div>
 
@@ -80,12 +80,12 @@ import { AuthService } from '../../core/services/auth.service';
 
         <button
           type="submit"
-          class="register-button"
+          class="bg-[#6B7F94] text-white rounded-full text-xl w-full mt-5" style="padding: 12px; background-color: #6B7F94; margin: 20px 0; border-radius: 25px;"
           [disabled]="!registerForm.form.valid || isLoading || !passwordsMatch()">
           {{isLoading ? 'Loading...' : 'Sign Up'}}
         </button>
 
-        <a routerLink="/login" class="already-have-account">Already have an account? Login</a>
+        <a routerLink="/login" class="text-gray-600 text-sm">Already have an account ? Login</a>
       </form>
     </div>
   `,
