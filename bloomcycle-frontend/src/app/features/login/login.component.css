@@ -69,3 +69,9 @@ h2 {
   color: #666;
   text-decoration: none;
 }
+
+.error-message {
+  color: #ff4444;
+  margin-top: 10px;
+  font-size: 14px;
+}
