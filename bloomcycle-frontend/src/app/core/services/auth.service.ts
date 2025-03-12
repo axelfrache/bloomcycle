@@ -5,11 +5,8 @@ import { Router } from '@angular/router';
 
 interface LoginResponse {
   token: string;
-  user: {
-    id: number;
-    username: string;
-    email: string;
-  };
+  email: string;
+  username: string;
 }
 
 interface RegisterData {
@@ -23,7 +20,7 @@ interface RegisterData {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://api-bloomcycle.axelfrache.me/api/v1';
+  private apiUrl = 'https://api-bloomcycle.axelfrache.me/api/v1';
   private tokenKey = 'auth_token';
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
 
@@ -32,9 +29,9 @@ export class AuthService {
     private router: Router
   ) {}
 
-  login(username: string, password: string): Observable<LoginResponse> {
+  login(email: string, password: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, {
-      username,
+      email,
       password
     }).pipe(
       tap(response => {

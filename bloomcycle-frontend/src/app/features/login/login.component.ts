@@ -16,12 +16,12 @@ import { AuthService } from '../../core/services/auth.service';
       <form class="login-form" (ngSubmit)="onSubmit()" #loginForm="ngForm">
         <div class="input-group">
           <label>
-            <img src="assets/user-icon.png" alt="👤" class="user-icon">
+            <img src="assets/email-icon.png" alt="📧" class="email-icon">
             <input
               type="text"
-              placeholder="Username"
-              name="username"
-              [(ngModel)]="loginData.username"
+              placeholder="Email"
+              name="email"
+              [(ngModel)]="loginData.email"
               required>
           </label>
         </div>
@@ -59,7 +59,7 @@ import { AuthService } from '../../core/services/auth.service';
 })
 export class LoginComponent {
   loginData = {
-    username: '',
+    email: '',
     password: ''
   };
 
@@ -77,7 +77,7 @@ export class LoginComponent {
     this.isLoading = true;
     this.error = null;
 
-    this.authService.login(this.loginData.username, this.loginData.password)
+    this.authService.login(this.loginData.email, this.loginData.password)
       .subscribe({
         next: () => {
           this.router.navigate(['/home']);
