@@ -229,7 +229,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}")
-    public ResponseEntity<ProjectResponse> getProject(@PathVariable Long id) {
+    public ResponseEntity<ProjectResponse> getProject(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -285,7 +285,7 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(
             @Parameter(description = "ID of the project to delete")
-            @PathVariable Long id) {
+            @PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -322,7 +322,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/start")
-    public ResponseEntity<ContainerResponse> startProject(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> startProject(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -361,7 +361,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/stop")
-    public ResponseEntity<ContainerResponse> stopProject(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> stopProject(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -401,7 +401,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/restart")
-    public ResponseEntity<ContainerResponse> restartProject(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> restartProject(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -441,7 +441,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}/status")
-    public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -467,7 +467,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}/details")
-    public ResponseEntity<ProjectDetailResponse> getProjectDetails(@PathVariable Long id) {
+    public ResponseEntity<ProjectDetailResponse> getProjectDetails(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);

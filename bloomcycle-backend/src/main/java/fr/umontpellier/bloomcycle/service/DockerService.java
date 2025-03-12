@@ -36,10 +36,10 @@ public class DockerService {
     private final ProjectService projectService;
 
     private String getContainerName(Project project) {
-        return "project-" + project.getUuid();
+        return "project-" + project.getId();
     }
 
-    public CompletableFuture<ContainerInfo> executeOperation(Long projectId, ContainerOperation operation) {
+    public CompletableFuture<ContainerInfo> executeOperation(String projectId, ContainerOperation operation) {
         return switch (operation) {
             case START -> startProject(projectId);
             case STOP -> stopProject(projectId);
@@ -133,7 +133,7 @@ public class DockerService {
         return String.format("http://%s:%s", serverHost, port);
     }
 
-    private CompletableFuture<ContainerInfo> startProject(Long projectId) {
+    private CompletableFuture<ContainerInfo> startProject(String projectId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 var project = projectService.getProjectById(projectId);
@@ -168,7 +168,7 @@ public class DockerService {
         }, dockerExecutor);
     }
 
-    private CompletableFuture<ContainerInfo> stopProject(Long projectId) {
+    private CompletableFuture<ContainerInfo> stopProject(String projectId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 var project = projectService.getProjectById(projectId);
@@ -185,7 +185,7 @@ public class DockerService {
         }, dockerExecutor);
     }
 
-    private CompletableFuture<ContainerInfo> restartProject(Long projectId) {
+    private CompletableFuture<ContainerInfo> restartProject(String projectId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 var project = projectService.getProjectById(projectId);
@@ -212,7 +212,7 @@ public class DockerService {
         }, dockerExecutor);
     }
 
-    public ContainerStatus getProjectStatus(Long projectId) {
+    public ContainerStatus getProjectStatus(String projectId) {
         try {
             var project = projectService.getProjectById(projectId);
             var processBuilder = new ProcessBuilder(
@@ -231,7 +231,7 @@ public class DockerService {
         }
     }
 
-    public String getProjectUrl(Long projectId) {
+    public String getProjectUrl(String projectId) {
         try {
             var project = projectService.getProjectById(projectId);
             var hostPort = getContainerPort(project);

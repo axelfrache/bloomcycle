@@ -37,7 +37,7 @@ public class ProjectService {
         return projectRepository.findByOwnerId(userId);
     }
 
-    public Project getProjectById(Long id) {
+    public Project getProjectById(String id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
@@ -151,7 +151,7 @@ public class ProjectService {
         }
     }
 
-    public void deleteProject(Long projectId) {
+    public void deleteProject(String projectId) {
         try {
             var project = getProjectById(projectId);
             
@@ -173,13 +173,13 @@ public class ProjectService {
         return projectRepository.findAll();
     }
 
-    public boolean hasCustomDockerfile(Long projectId) {
+    public boolean hasCustomDockerfile(String projectId) {
         var project = getProjectById(projectId);
         var projectPath = fileService.getProjectStoragePath(project);
         return Files.exists(Path.of(projectPath, "Dockerfile"));
     }
 
-    public String getProjectTechnology(Long projectId) {
+    public String getProjectTechnology(String projectId) {
         var project = getProjectById(projectId);
         var projectPath = fileService.getProjectStoragePath(project);
         return projectAnalyzer.analyzeTechnology(projectPath).name();

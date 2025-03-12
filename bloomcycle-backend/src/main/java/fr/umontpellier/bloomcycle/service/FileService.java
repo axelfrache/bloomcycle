@@ -3,11 +3,11 @@ package fr.umontpellier.bloomcycle.service;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.repository.FileRepository;
 import fr.umontpellier.bloomcycle.repository.ProjectRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +16,7 @@ import java.util.zip.ZipInputStream;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class FileService {
 
     private final FileRepository fileRepository;
@@ -24,14 +25,8 @@ public class FileService {
     @Value("${app.storage.path}")
     private String storagePath;
 
-    @Autowired
-    public FileService(FileRepository fileRepository, ProjectRepository projectRepository) {
-        this.fileRepository = fileRepository;
-        this.projectRepository = projectRepository;
-    }
-
     public String getProjectStoragePath(Project project) {
-        return Path.of(storagePath, "projects", project.getUuid()).toString();
+        return Path.of(storagePath, "projects", project.getId()).toString();
     }
 
     public void extractZipFile(MultipartFile file, Path targetPath) throws IOException {

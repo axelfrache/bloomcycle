@@ -16,14 +16,11 @@ import java.util.UUID;
 public class Project {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(nullable = false, unique = true)
+    private String id;
 
     @Column(nullable = false)
     private String name;
-
-    @Column(nullable = false, unique = true)
-    private String uuid;
 
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
@@ -35,8 +32,7 @@ public class Project {
 
     @PrePersist
     protected void onCreate() {
-        if (uuid == null) {
-            uuid = UUID.randomUUID().toString();
-        }
+        if (id == null)
+            id = UUID.randomUUID().toString();
     }
 }
