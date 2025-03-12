@@ -1,33 +1,31 @@
 package fr.umontpellier.bloomcycle.configuration;
 
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.info.Info;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.List;
-
 @Configuration
+@OpenAPIDefinition(
+    info = @Info(
+        title = "BloomCycle API",
+        version = "1.0",
+        description = "API Documentation for BloomCycle"
+    )
+)
 public class OpenApiConfig {
 
     @Bean
-    public OpenAPI apiConfiguration() {
-        var devServer = new Server()
-            .url("http://localhost:9090")
-            .description("Development server");
-
-        var prodServer = new Server()
-            .url("https://api-bloomcycle.axelfrache.me")
-            .description("Production server");
-
-        var info = new Info()
-            .title("BloomCycle API")
-            .version("1.0")
-            .description("This API exposes endpoints for BloomCycle project management.");
-
+    public OpenAPI customOpenAPI() {
         return new OpenAPI()
-            .info(info)
-            .servers(List.of(prodServer, devServer));
+            .components(new Components()
+                .addSecuritySchemes("bearer-key",
+                    new SecurityScheme()
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")));
     }
 }

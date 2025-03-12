@@ -1,9 +1,13 @@
 package fr.umontpellier.bloomcycle.service;
 
+import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.repository.ProjectRepository;
 import fr.umontpellier.bloomcycle.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
@@ -13,50 +17,73 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import fr.umontpellier.bloomcycle.service.ProjectTypeAnalyzer.TechnologyStack;
+import fr.umontpellier.bloomcycle.exception.UnauthorizedAccessException;
+
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final FileService fileService;
     private final GitService gitService;
-
-    @Autowired
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository, FileService fileService, GitService gitService) {
-        this.projectRepository = projectRepository;
-        this.userRepository = userRepository;
-        this.fileService = fileService;
-        this.gitService = gitService;
-    }
+    private final ProjectTypeAnalyzer projectAnalyzer;
+    private final DockerComposeGenerator dockerComposeGenerator;
 
     public List<Project> getProjectsByUserId(Long userId) {
         return projectRepository.findByOwnerId(userId);
     }
 
-    public Project getProjectById(Long projectId) {
-        return projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
+    public Project getProjectById(Long id) {
+        return projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
 
-    private Project createProject(String projectName, Long userId) {
-        var user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+    public List<Project> getProjectsByUser(User user) {
+        return projectRepository.findByOwner(user);
+    }
+
+    public List<Project> getCurrentUserProjects() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var currentUser = (User) authentication.getPrincipal();
+        log.info("Getting projects for user: {}", currentUser.getEmail());
+        return getProjectsByUser(currentUser);
+    }
+
+    private Project createProject(String projectName) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var currentUser = (User) authentication.getPrincipal();
 
         var project = new Project();
         project.setName(projectName);
-        project.setOwner(user);
-        project.setStatus("Initialized");
-        
+        project.setOwner(currentUser);
+
         return projectRepository.save(project);
     }
 
-    public Project initializeProjectFromGit(String projectName, String gitUrl, Long userId) {
+    private void analyzeAndSetupProject(String projectPath) {
         try {
-            var project = createProject(projectName, userId);
+            var technology = projectAnalyzer.analyzeTechnology(projectPath);
+            var existingDockerCompose = projectAnalyzer.findContainerization(projectPath);
+
+            if (existingDockerCompose.isEmpty() && technology != TechnologyStack.UNKNOWN)
+                dockerComposeGenerator.generateDockerCompose(projectPath, technology);
+        } catch (Exception e) {
+            throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
+        }
+    }
+
+    public Project initializeProjectFromGit(String projectName, String gitUrl) {
+        try {
+            var project = createProject(projectName);
             var projectPath = fileService.getProjectStoragePath(project.getId());
-            
+
             Files.createDirectories(Paths.get(projectPath));
             gitService.cloneRepository(gitUrl, projectPath);
+
+            analyzeAndSetupProject(projectPath);
 
             return project;
         } catch (Exception e) {
@@ -64,14 +91,16 @@ public class ProjectService {
         }
     }
 
-    public Project initializeProjectFromZip(String projectName, MultipartFile sourceZip, Long userId) {
+    public Project initializeProjectFromZip(String projectName, MultipartFile sourceZip) {
         try {
-            var project = createProject(projectName, userId);
+            var project = createProject(projectName);
             var projectPath = fileService.getProjectStoragePath(project.getId());
             var targetPath = Paths.get(projectPath);
-            
+
             Files.createDirectories(targetPath);
             fileService.extractZipFile(sourceZip, targetPath);
+
+            analyzeAndSetupProject(projectPath);
 
             return project;
         } catch (Exception e) {
@@ -82,13 +111,22 @@ public class ProjectService {
     public void deleteProject(Long projectId) {
         try {
             var project = getProjectById(projectId);
+            
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            var currentUser = (User) authentication.getPrincipal();
+            if (!project.getOwner().getId().equals(currentUser.getId())) {
+                throw new UnauthorizedAccessException("You don't have permission to delete this project");
+            }
+
             var projectPath = fileService.getProjectStoragePath(projectId);
-            
             fileService.deleteProjectDirectory(projectPath);
-            
             projectRepository.delete(project);
         } catch (Exception e) {
             throw new RuntimeException("Error deleting project: " + e.getMessage(), e);
         }
+    }
+
+    public List<Project> getAllProjects() {
+        return projectRepository.findAll();
     }
 }
