@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { AuthService } from '../../core/services/auth.service';
 
 interface Application {
   name: string;
@@ -10,8 +11,12 @@ interface Application {
   selector: 'app-home',
   standalone: true,
   imports: [CommonModule],
+
   template: `
     <div class="home-container">
+
+      <button class="logout-btn" (click)="logout()">Logout</button>
+
       <h1>Your Projects</h1>
 
       <table class="applications-table">
@@ -75,4 +80,10 @@ export class HomeComponent {
     { name: 'APP6', status: 'STOPPED' },
     { name: 'APP7', status: 'RUNNING' }
   ];
+
+  constructor(private authService: AuthService) {}
+
+  logout(): void {
+    this.authService.logout();
+  }
 }
