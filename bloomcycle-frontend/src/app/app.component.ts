@@ -1,12 +1,15 @@
 import { Component } from '@angular/core';
 import {RouterOutlet, RouterLink, RouterLinkActive} from '@angular/router';
+import {AuthService} from './core/services/auth.service';
+import {AsyncPipe, NgIf} from '@angular/common';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIf, AsyncPipe],
   template: `
-    <header>
+    <header *ngIf="hasToken$ | async">
       <nav>
         <div class="logo-container">
           <a routerLink="/home" class="nav-link">
@@ -32,4 +35,9 @@ import {RouterOutlet, RouterLink, RouterLinkActive} from '@angular/router';
 })
 export class AppComponent {
   title = 'bloomcycle';
+  hasToken$: Observable<boolean>;
+
+  constructor(private authService: AuthService) {
+    this.hasToken$ = this.authService.isAuthenticated();
+  }
 }
