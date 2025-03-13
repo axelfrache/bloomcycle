@@ -232,7 +232,11 @@ public class DockerService {
                 .redirectErrorStream(true);
 
         String metrics = executeDockerCommand(processBuilder);
-        return metrics.split(";");
+        String[] values = metrics.split(";");
+        return new String[]{
+                values[0].replace("%", ""),
+                values[1].replace("%", "")
+        };
     }
 
     public String getProjectUrl(String projectId) {
