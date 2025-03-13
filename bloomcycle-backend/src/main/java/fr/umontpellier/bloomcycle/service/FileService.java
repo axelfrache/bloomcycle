@@ -1,119 +1,64 @@
 package fr.umontpellier.bloomcycle.service;
 
+import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.repository.FileRepository;
 import fr.umontpellier.bloomcycle.repository.ProjectRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import lombok.RequiredArgsConstructor;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.Comparator;
-import java.util.zip.ZipEntry;
+import java.nio.file.*;
 import java.util.zip.ZipInputStream;
 
 @Service
+@RequiredArgsConstructor
 public class FileService {
 
     private final FileRepository fileRepository;
     private final ProjectRepository projectRepository;
 
-    @Value("${app.storage.path:/tmp/bloomcycle}")
-    private String baseStoragePath;
+    @Value("${app.storage.path}")
+    private String storagePath;
 
-    @Autowired
-    public FileService(FileRepository fileRepository, ProjectRepository projectRepository) {
-        this.fileRepository = fileRepository;
-        this.projectRepository = projectRepository;
+    public String getProjectStoragePath(Project project) {
+        return Path.of(storagePath, "projects", project.getId()).toString();
     }
 
-    public String getProjectStoragePath(Long projectId) {
-        return Paths.get(baseStoragePath, "projects", projectId.toString()).toString();
-    }
+    public void extractZipFile(MultipartFile file, Path targetPath) throws IOException {
+        try (var zipInputStream = new ZipInputStream(file.getInputStream())) {
+            var entry = zipInputStream.getNextEntry();
+            while (entry != null) {
+                var entryPath = targetPath.resolve(entry.getName());
 
-    public void extractZipFile(MultipartFile zipFile, Path targetPath) throws IOException {
-        var commonPrefix = findCommonPrefix(zipFile);
-        extractEntriesFromZip(zipFile, targetPath, commonPrefix);
-    }
+                if (!entryPath.normalize().startsWith(targetPath.normalize()))
+                    throw new SecurityException("ZIP entry contains invalid path: " + entry.getName());
 
-    private String findCommonPrefix(MultipartFile zipFile) throws IOException {
-        try (var zip = new ZipInputStream(zipFile.getInputStream())) {
-            var firstEntry = zip.getNextEntry();
-            if (firstEntry == null) return "";
-
-            var prefix = firstEntry.isDirectory() ? firstEntry.getName() : "";
-            return isCommonPrefixValid(zip, prefix) ? prefix : "";
-        }
-    }
-
-    private boolean isCommonPrefixValid(ZipInputStream zip, String prefix) throws IOException {
-        ZipEntry entry;
-        while ((entry = zip.getNextEntry()) != null) {
-            if (!entry.getName().startsWith(prefix)) return false;
-            zip.closeEntry();
-        }
-        return true;
-    }
-
-    private void extractEntriesFromZip(MultipartFile zipFile, Path targetPath, String commonPrefix) throws IOException {
-        try (var zip = new ZipInputStream(zipFile.getInputStream())) {
-            ZipEntry entry;
-            while ((entry = zip.getNextEntry()) != null) {
-                processZipEntry(entry, zip, targetPath, commonPrefix);
-                zip.closeEntry();
+                if (entry.isDirectory()) {
+                    Files.createDirectories(entryPath);
+                } else {
+                    Files.createDirectories(entryPath.getParent());
+                    Files.copy(zipInputStream, entryPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                entry = zipInputStream.getNextEntry();
             }
         }
-    }
-
-    private void processZipEntry(ZipEntry entry, ZipInputStream zip, Path targetPath, String commonPrefix) throws IOException {
-        var entryName = getRelativeEntryName(entry.getName(), commonPrefix);
-        if (entryName.isEmpty()) return;
-
-        var entryPath = targetPath.resolve(entryName);
-        ensurePathSecurity(entryPath, targetPath);
-
-        if (entry.isDirectory()) {
-            Files.createDirectories(entryPath);
-        } else {
-            extractFileEntry(zip, entryPath);
-        }
-    }
-
-    private String getRelativeEntryName(String entryName, String commonPrefix) {
-        return commonPrefix.isEmpty() ? entryName :
-                entryName.startsWith(commonPrefix) ? entryName.substring(commonPrefix.length()) :
-                        entryName;
-    }
-
-    private void ensurePathSecurity(Path entryPath, Path targetPath) {
-        if (!entryPath.normalize().startsWith(targetPath.normalize()))
-            throw new SecurityException("ZIP contains malicious paths");
-    }
-
-    private void extractFileEntry(ZipInputStream zip, Path filePath) throws IOException {
-        Files.createDirectories(filePath.getParent());
-        Files.copy(zip, filePath, StandardCopyOption.REPLACE_EXISTING);
     }
 
     public void deleteProjectDirectory(String projectPath) throws IOException {
-        var path = Paths.get(projectPath);
-        if (Files.exists(path))
+        var path = Path.of(projectPath);
+        if (Files.exists(path)) {
             try (var pathStream = Files.walk(path)) {
-                pathStream
-                        .sorted(Comparator.reverseOrder())
-                        .forEach(this::deleteFile);
+                var success = pathStream
+                        .sorted(java.util.Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .allMatch(File::delete);
+                if (!success) {
+                    throw new IOException("Failed to delete some files in directory: " + projectPath);
+                }
             }
-    }
-
-    private void deleteFile(Path path) {
-        try {
-            Files.delete(path);
-        } catch (IOException e) {
-            throw new RuntimeException("Error deleting file: " + path, e);
         }
     }
 }

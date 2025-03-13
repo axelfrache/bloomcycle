@@ -8,7 +8,8 @@ import lombok.Getter;
 public enum ContainerStatus {
     RUNNING("Container is running"),
     STOPPED("Container is stopped"),
-    ERROR("Container encountered an error");
+    ERROR("Container encountered an error"),
+    PENDING("Container is pending");
 
     private final String description;
 
