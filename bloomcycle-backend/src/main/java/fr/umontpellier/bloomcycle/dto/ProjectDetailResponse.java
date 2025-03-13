@@ -7,18 +7,22 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ProjectResponse {
+public class ProjectDetailResponse {
     private String id;
     private String name;
     private String owner;
     private ContainerStatus containerStatus;
+    private String serverUrl;
+    private String technology;
 
-    public static ProjectResponse fromProject(Project project, ContainerStatus containerStatus) {
-        return ProjectResponse.builder()
+    public static ProjectDetailResponse fromProject(Project project, ContainerStatus status, String serverUrl, String technology) {
+        return ProjectDetailResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
                 .owner(project.getOwner().getEmail())
-                .containerStatus(containerStatus)
+                .containerStatus(status)
+                .serverUrl(status == ContainerStatus.RUNNING ? serverUrl : null)
+                .technology(technology)
                 .build();
     }
-}
+} 

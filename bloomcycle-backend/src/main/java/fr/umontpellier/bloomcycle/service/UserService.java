@@ -5,11 +5,9 @@ import fr.umontpellier.bloomcycle.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import lombok.extern.slf4j.Slf4j;
 import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
 
 @Service
-@Slf4j
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
@@ -21,9 +19,7 @@ public class UserService implements UserDetailsService {
     @Override
     public User loadUserByUsername(String email) throws UsernameNotFoundException {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    return new UsernameNotFoundException("User not found with email: " + email);
-                });
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }
 
     public User getUserByEmail(String email) {

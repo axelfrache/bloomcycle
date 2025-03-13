@@ -1,46 +1,132 @@
 package fr.umontpellier.bloomcycle.service;
 
-import lombok.Getter;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Service
 public class ProjectTypeAnalyzer {
 
-    @Getter
     public enum TechnologyStack {
-        JAVA_MAVEN(List.of("pom.xml")),
-        JAVA_GRADLE(List.of("build.gradle", "build.gradle.kts")),
-        NODEJS(List.of("package.json")),
-        PYTHON(List.of("requirements.txt", "setup.py", "pyproject.toml")),
-        UNKNOWN(List.of());
-
-        private final List<String> markers;
-
-        TechnologyStack(List<String> markers) {
-            this.markers = markers;
-        }
-
+        JAVA_MAVEN,
+        NODEJS,
+        PYTHON,
+        UNKNOWN
     }
 
     public TechnologyStack analyzeTechnology(String projectPath) {
-        var basePath = Path.of(projectPath);
+        var dockerfile = Path.of(projectPath, "Dockerfile");
+        if (Files.exists(dockerfile)) {
+            try {
+                var dockerfileContent = Files.readString(dockerfile);
+                var detectedTech = analyzeDockerfile(dockerfileContent);
+                if (detectedTech != TechnologyStack.UNKNOWN) {
+                    return detectedTech;
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Error reading Dockerfile: " + e.getMessage(), e);
+            }
+        }
 
-        return Stream.of(TechnologyStack.values())
-                .filter(tech -> tech != TechnologyStack.UNKNOWN)
-                .filter(tech -> hasAnyMarker(basePath, tech.getMarkers()))
-                .findFirst()
-                .orElse(TechnologyStack.UNKNOWN);
+        return analyzeProjectFiles(projectPath);
     }
 
-    private boolean hasAnyMarker(Path basePath, List<String> markers) {
-        return markers.stream()
-                .anyMatch(marker -> Files.exists(basePath.resolve(marker)));
+    private TechnologyStack analyzeDockerfile(String content) {
+        content = content.toLowerCase();
+        
+        if (content.contains("from openjdk") || 
+            content.contains("from maven") || 
+            content.contains("from gradle")) {
+            return TechnologyStack.JAVA_MAVEN;
+        }
+        
+        if (content.contains("from node") || 
+            content.contains("npm install") || 
+            content.contains("yarn install")) {
+            return TechnologyStack.NODEJS;
+        }
+        
+        if (content.contains("from python") || 
+            content.contains("pip install") || 
+            content.contains("requirements.txt")) {
+            return TechnologyStack.PYTHON;
+        }
+
+        if (content.contains("mvn") || content.contains(".jar")) {
+            return TechnologyStack.JAVA_MAVEN;
+        }
+        
+        if (content.contains("package.json") || 
+            content.contains("node_modules") || 
+            content.contains("npm") || 
+            content.contains("yarn")) {
+            return TechnologyStack.NODEJS;
+        }
+        
+        if (content.contains("python") || 
+            content.contains("pip") || 
+            content.contains(".py")) {
+            return TechnologyStack.PYTHON;
+        }
+
+        return TechnologyStack.UNKNOWN;
+    }
+
+    private TechnologyStack analyzeProjectFiles(String projectPath) {
+        try (Stream<Path> paths = Files.walk(Path.of(projectPath))) {
+            var files = paths
+                .filter(Files::isRegularFile)
+                .map(Path::getFileName)
+                .map(Path::toString)
+                .toList();
+
+            if (hasJavaFiles(files)) {
+                return TechnologyStack.JAVA_MAVEN;
+            }
+
+            if (hasNodeFiles(files)) {
+                return TechnologyStack.NODEJS;
+            }
+
+            if (hasPythonFiles(files)) {
+                return TechnologyStack.PYTHON;
+            }
+
+            return TechnologyStack.UNKNOWN;
+        } catch (IOException e) {
+            return TechnologyStack.UNKNOWN;
+        }
+    }
+
+    private boolean hasJavaFiles(List<String> files) {
+        return files.stream().anyMatch(f -> 
+            f.equals("pom.xml") || 
+            f.equals("build.gradle") || 
+            f.endsWith(".java")
+        );
+    }
+
+    private boolean hasNodeFiles(List<String> files) {
+        return files.stream().anyMatch(f -> 
+            f.equals("package.json") || 
+            f.equals("package-lock.json") || 
+            f.equals("yarn.lock") || 
+            f.endsWith(".js") || 
+            f.endsWith(".ts")
+        );
+    }
+
+    private boolean hasPythonFiles(List<String> files) {
+        return files.stream().anyMatch(f -> 
+            f.equals("requirements.txt") || 
+            f.equals("setup.py") || 
+            f.endsWith(".py")
+        );
     }
 
     public Optional<String> findContainerization(String projectPath) {

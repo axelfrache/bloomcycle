@@ -3,12 +3,14 @@ package fr.umontpellier.bloomcycle.controller;
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
 import fr.umontpellier.bloomcycle.dto.error.ErrorResponse;
+import fr.umontpellier.bloomcycle.dto.ProjectDetailResponse;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
 import fr.umontpellier.bloomcycle.service.DockerService;
 import fr.umontpellier.bloomcycle.service.ProjectService;
+import fr.umontpellier.bloomcycle.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,6 +32,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -40,6 +43,7 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final DockerService dockerService;
+    private final FileService fileService;
 
     @Operation(
         summary = "Create project from Git",
@@ -225,7 +229,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}")
-    public ResponseEntity<ProjectResponse> getProject(@PathVariable Long id) {
+    public ResponseEntity<ProjectResponse> getProject(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -281,7 +285,7 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(
             @Parameter(description = "ID of the project to delete")
-            @PathVariable Long id) {
+            @PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -318,13 +322,14 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/start")
-    public ResponseEntity<ContainerResponse> startProject(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> startProject(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
 
-            dockerService.startProject(id);
-            return ResponseEntity.ok(ContainerResponse.success("start"));
+            var containerInfo = dockerService.executeOperation(id, ContainerOperation.START)
+                    .get(30, TimeUnit.SECONDS);  // Timeout après 30 secondes
+            return ResponseEntity.ok(ContainerResponse.fromContainerInfo(containerInfo, "start"));
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
@@ -356,17 +361,17 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/stop")
-    public ResponseEntity<ContainerResponse> stopProject(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> stopProject(@PathVariable String id) {
         try {
-            projectService.getProjectById(id);
-            dockerService.executeOperation(id, ContainerOperation.STOP)
-                    .thenAccept(status -> {
-                        if (status == ContainerStatus.ERROR) {
-                            throw new RuntimeException("Failed to stop project");
-                        }
-                    });
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            var containerInfo = dockerService.executeOperation(id, ContainerOperation.STOP)
+                    .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
-                    .body(ContainerResponse.pending("stop"));
+                    .body(ContainerResponse.fromContainerInfo(containerInfo, "stop"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("stop", e.getMessage()));
@@ -396,17 +401,17 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping("/{id}/restart")
-    public ResponseEntity<ContainerResponse> restartProject(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> restartProject(@PathVariable String id) {
         try {
-            projectService.getProjectById(id);
-            dockerService.executeOperation(id, ContainerOperation.RESTART)
-                    .thenAccept(status -> {
-                        if (status == ContainerStatus.ERROR) {
-                            throw new RuntimeException("Failed to restart project");
-                        }
-                    });
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            var containerInfo = dockerService.executeOperation(id, ContainerOperation.RESTART)
+                    .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
-                    .body(ContainerResponse.pending("restart"));
+                    .body(ContainerResponse.fromContainerInfo(containerInfo, "restart"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("restart", e.getMessage()));
@@ -436,7 +441,7 @@ public class ProjectController {
     )
     @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}/status")
-    public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable Long id) {
+    public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
@@ -448,6 +453,36 @@ public class ProjectController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ContainerResponse.error("get status", e.getMessage()));
+        }
+    }
+
+    @Operation(
+        summary = "Get project details",
+        description = "Get detailed information about a specific project"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Project details retrieved successfully",
+        content = @Content(schema = @Schema(implementation = ProjectDetailResponse.class))
+    )
+    @SecurityRequirement(name = "bearer-key")
+    @GetMapping("/{id}/details")
+    public ResponseEntity<ProjectDetailResponse> getProjectDetails(@PathVariable String id) {
+        try {
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            var status = dockerService.getProjectStatus(id);
+            var technology = projectService.getProjectTechnology(id);
+            var serverUrl = status == ContainerStatus.RUNNING ? 
+                dockerService.getProjectUrl(id) : null;
+
+            return ResponseEntity.ok(ProjectDetailResponse.fromProject(
+                project, status, serverUrl, technology));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

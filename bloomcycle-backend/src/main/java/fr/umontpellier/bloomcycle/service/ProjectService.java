@@ -6,12 +6,13 @@ import fr.umontpellier.bloomcycle.repository.ProjectRepository;
 import fr.umontpellier.bloomcycle.repository.UserRepository;
 import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.io.IOException;
 
 import java.util.List;
 
@@ -21,7 +22,6 @@ import fr.umontpellier.bloomcycle.service.ProjectTypeAnalyzer.TechnologyStack;
 import fr.umontpellier.bloomcycle.exception.UnauthorizedAccessException;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class ProjectService {
 
@@ -30,13 +30,12 @@ public class ProjectService {
     private final FileService fileService;
     private final GitService gitService;
     private final ProjectTypeAnalyzer projectAnalyzer;
-    private final DockerComposeGenerator dockerComposeGenerator;
 
     public List<Project> getProjectsByUserId(Long userId) {
         return projectRepository.findByOwnerId(userId);
     }
 
-    public Project getProjectById(Long id) {
+    public Project getProjectById(String id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
@@ -48,7 +47,6 @@ public class ProjectService {
     public List<Project> getCurrentUserProjects() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         var currentUser = (User) authentication.getPrincipal();
-        log.info("Getting projects for user: {}", currentUser.getEmail());
         return getProjectsByUser(currentUser);
     }
 
@@ -63,13 +61,50 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
-    private void analyzeAndSetupProject(String projectPath) {
-        try {
-            var technology = projectAnalyzer.analyzeTechnology(projectPath);
-            var existingDockerCompose = projectAnalyzer.findContainerization(projectPath);
+    private void generateDockerfile(String projectPath, TechnologyStack technology) throws IOException {
+        String dockerfileContent = switch (technology) {
+            case JAVA_MAVEN -> """
+                FROM maven:3.8-openjdk-17
+                WORKDIR /app
+                COPY . .
+                RUN mvn clean package
+                CMD ["java", "-jar", "target/*.jar"]
+                """;
+            case NODEJS -> """
+                FROM node:20-alpine
+                WORKDIR /app
+                COPY package*.json ./
+                RUN npm install
+                COPY . .
+                EXPOSE 3000
+                CMD ["npm", "start"]
+                """;
+            case PYTHON -> """
+                FROM python:3.9
+                WORKDIR /app
+                COPY requirements.txt .
+                RUN pip install -r requirements.txt
+                COPY . .
+                CMD ["python", "app.py"]
+                """;
+            default -> throw new IllegalArgumentException("Unknown project type");
+        };
 
-            if (existingDockerCompose.isEmpty() && technology != TechnologyStack.UNKNOWN)
-                dockerComposeGenerator.generateDockerCompose(projectPath, technology);
+        var dockerfilePath = Path.of(projectPath, "Dockerfile");
+        Files.writeString(dockerfilePath, dockerfileContent);
+    }
+
+    private void analyzeAndSetupProject(Project project) {
+        try {
+            var projectPath = fileService.getProjectStoragePath(project);
+            var technology = projectAnalyzer.analyzeTechnology(projectPath);
+
+            var dockerfilePath = Path.of(projectPath, "Dockerfile");
+            if (!Files.exists(dockerfilePath)) {
+                generateDockerfile(projectPath, technology);
+            } else {
+                throw new RuntimeException("Dockerfile already exists in project directory");
+            }
         } catch (Exception e) {
             throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
         }
@@ -78,12 +113,12 @@ public class ProjectService {
     public Project initializeProjectFromGit(String projectName, String gitUrl) {
         try {
             var project = createProject(projectName);
-            var projectPath = fileService.getProjectStoragePath(project.getId());
+            var projectPath = fileService.getProjectStoragePath(project);
 
             Files.createDirectories(Paths.get(projectPath));
             gitService.cloneRepository(gitUrl, projectPath);
 
-            analyzeAndSetupProject(projectPath);
+            analyzeAndSetupProject(project);
 
             return project;
         } catch (Exception e) {
@@ -94,13 +129,13 @@ public class ProjectService {
     public Project initializeProjectFromZip(String projectName, MultipartFile sourceZip) {
         try {
             var project = createProject(projectName);
-            var projectPath = fileService.getProjectStoragePath(project.getId());
+            var projectPath = fileService.getProjectStoragePath(project);
             var targetPath = Paths.get(projectPath);
 
             Files.createDirectories(targetPath);
             fileService.extractZipFile(sourceZip, targetPath);
 
-            analyzeAndSetupProject(projectPath);
+            analyzeAndSetupProject(project);
 
             return project;
         } catch (Exception e) {
@@ -108,7 +143,7 @@ public class ProjectService {
         }
     }
 
-    public void deleteProject(Long projectId) {
+    public void deleteProject(String projectId) {
         try {
             var project = getProjectById(projectId);
             
@@ -118,7 +153,7 @@ public class ProjectService {
                 throw new UnauthorizedAccessException("You don't have permission to delete this project");
             }
 
-            var projectPath = fileService.getProjectStoragePath(projectId);
+            var projectPath = fileService.getProjectStoragePath(project);
             fileService.deleteProjectDirectory(projectPath);
             projectRepository.delete(project);
         } catch (Exception e) {
@@ -128,5 +163,17 @@ public class ProjectService {
 
     public List<Project> getAllProjects() {
         return projectRepository.findAll();
+    }
+
+    public boolean hasCustomDockerfile(String projectId) {
+        var project = getProjectById(projectId);
+        var projectPath = fileService.getProjectStoragePath(project);
+        return Files.exists(Path.of(projectPath, "Dockerfile"));
+    }
+
+    public String getProjectTechnology(String projectId) {
+        var project = getProjectById(projectId);
+        var projectPath = fileService.getProjectStoragePath(project);
+        return projectAnalyzer.analyzeTechnology(projectPath).name();
     }
 }
