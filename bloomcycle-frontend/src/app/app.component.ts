@@ -20,13 +20,17 @@ import { Observable } from 'rxjs';
         <div class="flex gap-8">
           <a routerLink="/home" routerLinkActive="active" [ngClass]="{'bg-[#f5f0e6] border border-gray-800 border-b-0 font-bold': isActive('/home')}"
              class="flex items-center gap-2 text-gray-800 rounded-t-xl hover:bg-gray-100 border-gr" style="padding: 10px 20px;">
-            <img src="assets/eye-icon.png" alt="eye" class="h-10">
+            <img src="assets/eye.svg" alt="eye" class="h-10">
             YOUR APPS
           </a>
           <a routerLink="/upload" routerLinkActive="active" [ngClass]="{'bg-[#f5f0e6] border border-gray-800 border-b-0 font-bold': isActive('/upload')}"
-             class="flex items-center gap-2 text-gray-800 py-2 px-4 rounded-t-xl hover:bg-gray-100">
-            <img src="assets/upload-icon.png" alt="upload" class="h-10">
+             class="flex items-center gap-2 text-gray-800 rounded-t-xl hover:bg-gray-100" style="padding: 10px 20px;">
+            <img src="assets/cloud-arrow-up.svg" alt="upload" class="h-10">
             UPLOAD NEW APP
+          </a>
+          <a (click)="logout()" class="flex items-center gap-2 text-gray-800 rounded-t-xl hover:bg-gray-100" style="padding: 10px 20px;">
+            <img src="assets/sign-out.svg" alt="upload" class="h-10">
+            LOGOUT
           </a>
         </div>
       </nav>
@@ -43,6 +47,10 @@ export class AppComponent {
 
   constructor(private router: Router, private authService: AuthService) {
     this.hasToken$ = this.authService.isAuthenticated();
+  }
+
+  logout(): void {
+    this.authService.logout();
   }
 
   // Méthode pour vérifier si la route est active

@@ -13,7 +13,6 @@ interface Application {
   imports: [CommonModule],
   template: `
     <div class="max-w-screen-xl" style="margin: 0 auto; padding: 40px 20px;">
-      <button class="logout-btn" (click)="logout()">Logout</button>
       <h1 class="text-2xl font-semibold" style="margin-bottom: 40px;">Your Projects</h1>
 
       <table class="w-full bg-white rounded-lg overflow-hidden">
@@ -33,7 +32,7 @@ interface Application {
           </td>
           <td class="flex gap-3 border-2 border-solid border-gray-200" style="padding: 16px;">
             <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-              <img src="assets/view-icon.png" alt="view" class="w-4 h-4">
+              <img src="assets/eye.svg" alt="view" class="w-4 h-4">
               <span class="text-xs">VIEW DETAILS</span>
             </button>
             <ng-container *ngIf="app.status === 'RUNNING'">
@@ -42,13 +41,13 @@ interface Application {
                 <span class="text-xs">RESTART</span>
               </button>
               <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-                <img src="assets/stop-icon.png" alt="stop" class="w-4 h-4">
+                <img src="assets/stop-circle.svg" alt="stop" class="w-4 h-4">
                 <span class="text-xs">STOP</span>
               </button>
             </ng-container>
             <ng-container *ngIf="app.status === 'STOPPED'">
               <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-                <img src="assets/start-icon.png" alt="start" class="w-4 h-4">
+                <img src="assets/play-fill.svg" alt="start" class="w-4 h-4">
                 <span class="text-xs">START</span>
               </button>
             </ng-container>
@@ -59,7 +58,7 @@ interface Application {
               </button>
             </ng-container>
             <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-              <img src="assets/delete-icon.png" alt="delete" class="w-4 h-4">
+              <img src="assets/trash.svg" alt="delete" class="w-4 h-4">
               <span class="text-xs">DELETE</span>
             </button>
           </td>
@@ -80,10 +79,4 @@ export class HomeComponent {
     { name: 'APP6', status: 'STOPPED' },
     { name: 'APP7', status: 'RUNNING' }
   ];
-
-  constructor(private authService: AuthService) {}
-
-  logout(): void {
-    this.authService.logout();
-  }
 }

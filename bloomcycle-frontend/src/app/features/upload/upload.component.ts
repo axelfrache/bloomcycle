@@ -8,9 +8,7 @@ import { Component } from '@angular/core';
       <h1 class=" text-2xl font-semibold" style="margin-bottom: 40px;">Upload new application</h1>
 
       <div class="border-2 border-dashed border-gray-300 rounded-lg text-center flex flex-col items-center gap-5" style="padding: 40px;">
-        <div class="w-20 h-auto">
-          <img src="assets/upload-icon.png" alt="upload-icon">
-        </div>
+          <img src="assets/cloud-arrow-up.svg" alt="upload-icon" class="w-20 h-auto">
         <button class="bg-white border border-gray-300 rounded-md" style="padding: 8px 16px;">
           Choose file
           <span class="text-gray-600" style="margin-left: 4px;">.zip</span>

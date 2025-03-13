@@ -16,7 +16,7 @@ import { AuthService } from '../../core/services/auth.service';
       <form (ngSubmit)="onSubmit()" #registerForm="ngForm" class="flex flex-col gap-5">
         <div class="relative">
           <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
-            <img src="assets/user-icon.png" alt="👤" class="user-icon">
+            <img src="assets/user.svg" alt="👤" class="user-icon">
             <input type="text"
                    placeholder="Username"
                    name="username"
@@ -28,7 +28,7 @@ import { AuthService } from '../../core/services/auth.service';
 
         <div class="relative">
           <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
-            <img src="assets/name-icon.png" alt="📝" class="name-icon">
+            <img src="assets/user-square.svg" alt="📝" class="h-6 w-6">
             <input type="text"
                    placeholder="Full Name"
                    name="fullName"
@@ -40,7 +40,7 @@ import { AuthService } from '../../core/services/auth.service';
 
         <div class="relative">
           <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
-            <img src="assets/email-icon.png" alt="📧" class="email-icon">
+            <img src="assets/envelope-simple.svg" alt="📧" class="email-icon">
             <input type="email"
                    placeholder="Email"
                    name="email"
@@ -52,7 +52,7 @@ import { AuthService } from '../../core/services/auth.service';
 
         <div class="relative">
           <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
-            <img src="assets/lock-icon.png" alt="🔒" class="lock-icon">
+            <img src="assets/lock.svg" alt="🔒" class="lock-icon">
             <input type="password"
                    placeholder="Password"
                    name="password"
@@ -64,7 +64,7 @@ import { AuthService } from '../../core/services/auth.service';
 
         <div class="relative">
           <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
-            <i class="lock-icon">🔒</i>
+            <img src="assets/lock.svg" alt="🔒" class="lock-icon">
             <input type="password"
                    placeholder="Retype Password"
                    name="confirmPassword"
