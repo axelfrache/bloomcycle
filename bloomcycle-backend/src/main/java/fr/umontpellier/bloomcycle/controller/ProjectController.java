@@ -473,12 +473,14 @@ public class ProjectController {
             checkProjectOwnership(project);
 
             var status = dockerService.getProjectStatus(id);
+            var cpuUsage = dockerService.getContainerMetrics(project)[0];
+            var memoryUsage = dockerService.getContainerMetrics(project)[1];
             var technology = projectService.getProjectTechnology(id);
             var serverUrl = status == ContainerStatus.RUNNING ? 
                 dockerService.getProjectUrl(id) : null;
 
             return ResponseEntity.ok(ProjectDetailResponse.fromProject(
-                project, status, serverUrl, technology));
+                project, status, cpuUsage, memoryUsage, serverUrl, technology));
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {

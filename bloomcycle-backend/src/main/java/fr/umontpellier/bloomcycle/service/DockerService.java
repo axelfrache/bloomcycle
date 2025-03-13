@@ -220,6 +220,25 @@ public class DockerService {
         }
     }
 
+    public String[] getContainerMetrics(Project project) throws IOException, InterruptedException {
+        var runCommand = new String[]{
+                "docker", "stats",
+                "--no-stream",
+                "--format", "{{.CPUPerc}};{{.MemPerc}}",
+                getContainerName(project)
+        };
+
+        var processBuilder = new ProcessBuilder(runCommand)
+                .redirectErrorStream(true);
+
+        String metrics = executeDockerCommand(processBuilder);
+        String[] values = metrics.split(";");
+        return new String[]{
+                values[0].replace("%", ""),
+                values[1].replace("%", "")
+        };
+    }
+
     public String getProjectUrl(String projectId) {
         try {
             var project = projectService.getProjectById(projectId);
