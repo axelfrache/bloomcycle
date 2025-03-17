@@ -71,7 +71,7 @@ APP_STORAGE_PATH=/chemin/vers/stockage
 1. Cloner le projet :
 ```bash
 git clone https://github.com/axelfrache/bloomcycle.git
-cd bloomcycle-backend
+cd bloomcycle/bloomcycle-backend
 ```
 
 2. Compiler le projet :
