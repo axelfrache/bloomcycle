@@ -32,33 +32,33 @@ interface Application {
           </td>
           <td class="flex gap-3 border-2 border-solid border-gray-200" style="padding: 16px;">
             <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-              <img src="assets/eye.svg" alt="view" class="w-4 h-4">
+              <i class="ph ph-eye"></i>
               <span class="text-xs">VIEW DETAILS</span>
             </button>
             <ng-container *ngIf="app.status === 'RUNNING'">
               <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-                <img src="assets/restart-icon.png" alt="restart" class="w-4 h-4">
+                <i class="ph ph-arrow-clockwise text-green-600"></i>
                 <span class="text-xs">RESTART</span>
               </button>
               <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-                <img src="assets/stop-circle.svg" alt="stop" class="w-4 h-4">
+                <i class="ph ph-stop-circle text-red-500"></i>
                 <span class="text-xs">STOP</span>
               </button>
             </ng-container>
             <ng-container *ngIf="app.status === 'STOPPED'">
               <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-                <img src="assets/play-fill.svg" alt="start" class="w-4 h-4">
+                <i class="ph-fill ph-play text-blue-800"></i>
                 <span class="text-xs">START</span>
               </button>
             </ng-container>
             <ng-container *ngIf="app.status === 'CRASHED'">
               <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-                <img src="assets/restart-icon.png" alt="restart" class="w-4 h-4">
+                <i class="ph ph-arrow-clockwise text-green-600"></i>
                 <span class="text-xs">RESTART</span>
               </button>
             </ng-container>
             <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
-              <img src="assets/trash.svg" alt="delete" class="w-4 h-4">
+              <i class="ph ph-trash"></i>
               <span class="text-xs">DELETE</span>
             </button>
           </td>

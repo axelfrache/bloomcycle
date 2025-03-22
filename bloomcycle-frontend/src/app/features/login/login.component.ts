@@ -9,14 +9,14 @@ import { AuthService } from '../../core/services/auth.service';
   imports: [RouterLink, FormsModule],
   template: `
     <div class="max-w-sm mx-auto p-6 text-center" style="margin: 0 auto; padding: 20px;">
-      <img src="assets/logo.png" alt="BloomCycle" class="w-20" style="margin: 0 auto;">
+      <img src="assets/logo.png" alt="BloomCycle" class="h-24" style="margin: 0 auto;">
       <h1 class="text-4xl" style="margin-bottom: 10px;">BloomCycle</h1>
       <h2 class="text-2xl text-gray-600" style="margin-bottom: 30px;">Login</h2>
 
       <form (ngSubmit)="onSubmit()" #loginForm="ngForm" class="flex flex-col gap-5">
         <div class="relative">
           <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
-            <img src="assets/envelope-simple.svg" alt="📧" class="email-icon">
+            <i class="ph-fill ph-envelope-simple text-3xl"></i>
             <input type="text"
                    placeholder="Email"
                    name="email"
@@ -28,7 +28,7 @@ import { AuthService } from '../../core/services/auth.service';
 
         <div class="relative">
           <label class="flex items-center gap-2 border-b border-gray-300 py-2" style="padding: 8px 0;">
-            <img src="assets/lock.svg" alt="🔒" class="lock-icon">
+            <i class="ph-fill ph-lock text-3xl"></i>
             <input type="password"
                    placeholder="Password"
                    name="password"

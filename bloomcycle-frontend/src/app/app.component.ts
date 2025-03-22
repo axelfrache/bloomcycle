@@ -13,23 +13,23 @@ import { Observable } from 'rxjs';
       <nav class="flex justify-between items-center max-w-screen-xl" style="margin: 0 auto;">
         <div class="flex items-center gap-2">
           <a routerLink="/home" class="flex items-center gap-2">
-            <img src="assets/logo.png" alt="BloomCycle" class="h-10">
-            <span class="font-serif text-xl text-gray-800">BloomCycle</span>
+            <img src="assets/logo.png" alt="BloomCycle" class="h-20">
+            <span class="font-serif text-xl font-bold text-gray-800">BloomCycle</span>
           </a>
         </div>
         <div class="flex gap-8">
           <a routerLink="/home" routerLinkActive="active" [ngClass]="{'bg-[#f5f0e6] border border-gray-800 border-b-0 font-bold': isActive('/home')}"
              class="flex items-center gap-2 text-gray-800 rounded-t-xl hover:bg-gray-100 border-gr" style="padding: 10px 20px;">
-            <img src="assets/eye.svg" alt="eye" class="h-10">
+            <i class="ph ph-eye text-5xl"></i>
             YOUR APPS
           </a>
           <a routerLink="/upload" routerLinkActive="active" [ngClass]="{'bg-[#f5f0e6] border border-gray-800 border-b-0 font-bold': isActive('/upload')}"
              class="flex items-center gap-2 text-gray-800 rounded-t-xl hover:bg-gray-100" style="padding: 10px 20px;">
-            <img src="assets/cloud-arrow-up.svg" alt="upload" class="h-10">
+            <i class="ph ph-cloud-arrow-up text-5xl"></i>
             UPLOAD NEW APP
           </a>
           <a (click)="logout()" class="flex items-center gap-2 text-gray-800 rounded-t-xl hover:bg-gray-100" style="padding: 10px 20px;">
-            <img src="assets/sign-out.svg" alt="upload" class="h-10">
+            <i class="ph ph-sign-out text-5xl"></i>
             LOGOUT
           </a>
         </div>
