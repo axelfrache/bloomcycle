@@ -10,7 +10,6 @@ import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
 import fr.umontpellier.bloomcycle.service.DockerService;
 import fr.umontpellier.bloomcycle.service.ProjectService;
-import fr.umontpellier.bloomcycle.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -43,69 +42,6 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final DockerService dockerService;
-    private final FileService fileService;
-
-    @Operation(
-        summary = "Create project from Git",
-        description = "Initialize a new project from a Git repository"
-    )
-    @ApiResponse(
-        responseCode = "200",
-        description = "Project created successfully",
-        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-    )
-    @ApiResponse(
-        responseCode = "401",
-        description = "Unauthorized - JWT token is missing or invalid"
-    )
-    @ApiResponse(
-        responseCode = "500",
-        description = "Internal server error while creating project"
-    )
-    @SecurityRequirement(name = "bearer-key")
-    @PostMapping("/git")
-    public ResponseEntity<Project> createProjectFromGit(
-            @Parameter(description = "Name of the project") @RequestParam String projectName,
-            @Parameter(description = "Git repository URL") @RequestParam String gitUrl) {
-        try {
-            var project = projectService.initializeProjectFromGit(projectName, gitUrl);
-            return ResponseEntity.ok(project);
-        } catch (Exception e) {
-            log.error("Error creating project from git: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @Operation(
-        summary = "Create project from ZIP",
-        description = "Initialize a new project from a ZIP file containing the source code"
-    )
-    @ApiResponse(
-        responseCode = "200",
-        description = "Project created successfully",
-        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-    )
-    @ApiResponse(
-        responseCode = "401",
-        description = "Unauthorized - JWT token is missing or invalid"
-    )
-    @ApiResponse(
-        responseCode = "500",
-        description = "Internal server error while creating project"
-    )
-    @SecurityRequirement(name = "bearer-key")
-    @PostMapping("/zip")
-    public ResponseEntity<Project> createProjectFromZip(
-            @Parameter(description = "Name of the project") @RequestParam String projectName,
-            @Parameter(description = "ZIP file containing project source code") @RequestParam("file") MultipartFile sourceZip) {
-        try {
-            var project = projectService.initializeProjectFromZip(projectName, sourceZip);
-            return ResponseEntity.ok(project);
-        } catch (Exception e) {
-            log.error("Error creating project from zip: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
 
     private void checkProjectOwnership(Project project) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -118,44 +54,62 @@ public class ProjectController {
 
     @Operation(
         summary = "Create a new project",
-        description = "Create a project from either a Git repository or a ZIP file"
+        description = "Create a project from either a Git repository URL or a ZIP file containing the source code"
     )
     @ApiResponse(
-        responseCode = "200",
+        responseCode = "201",
         description = "Project created successfully",
         content = @Content(schema = @Schema(implementation = ProjectResponse.class))
     )
     @ApiResponse(
         responseCode = "400",
-        description = "Invalid input",
+        description = "Invalid input - Must provide either gitUrl or a ZIP file, but not both",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class))
     )
     @ApiResponse(
         responseCode = "401",
         description = "Unauthorized - JWT token is missing or invalid"
     )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Internal server error while creating project"
+    )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> createProject(
-            @Parameter(description = "Project name") @RequestParam("name") String name,
+            @Parameter(description = "Project name", required = true) @RequestParam("name") String name,
             @Parameter(description = "Git repository URL") @RequestParam(value = "gitUrl", required = false) String gitUrl,
             @Parameter(description = "Source code as ZIP file") @RequestParam(value = "sourceZip", required = false) MultipartFile sourceZip) {
         try {
-            Project project;
-            if (gitUrl != null && !gitUrl.isEmpty()) {
-                project = projectService.initializeProjectFromGit(name, gitUrl);
-            } else if (sourceZip != null && !sourceZip.isEmpty()) {
-                project = projectService.initializeProjectFromZip(name, sourceZip);
-            } else {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "error", "You must provide either gitUrl or a ZIP file"
+            boolean hasGitUrl = gitUrl != null && !gitUrl.trim().isEmpty();
+            boolean hasZipFile = sourceZip != null && !sourceZip.isEmpty();
+            
+            ResponseEntity<Object> validationResponse = null;
+            if (hasGitUrl && hasZipFile) {
+                validationResponse = ResponseEntity.badRequest().body(Map.of(
+                    "error", "You must provide either gitUrl or a ZIP file, but not both"
+                ));
+            } else if (!hasGitUrl && !hasZipFile) {
+                validationResponse = ResponseEntity.badRequest().body(Map.of(
+                    "error", "You must provide either gitUrl or a ZIP file"
                 ));
             }
-            return ResponseEntity.ok(ProjectResponse.fromProject(project, ContainerStatus.STOPPED));
+            
+            if (validationResponse != null) {
+                return validationResponse;
+            }
+
+            Project project = hasGitUrl 
+                ? projectService.initializeProjectFromGit(name, gitUrl.trim())
+                : projectService.initializeProjectFromZip(name, sourceZip);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ProjectResponse.fromProject(project, ContainerStatus.STOPPED));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", e.getMessage(),
-                    "details", e.getCause() != null ? e.getCause().getMessage() : "No additional details"
+            log.error("Error creating project: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Failed to create project",
+                "details", e.getMessage()
             ));
         }
     }
@@ -328,13 +282,13 @@ public class ProjectController {
             checkProjectOwnership(project);
 
             var containerInfo = dockerService.executeOperation(id, ContainerOperation.START)
-                    .get(30, TimeUnit.SECONDS);  // Timeout après 30 secondes
+                    .get(30, TimeUnit.SECONDS);
             return ResponseEntity.ok(ContainerResponse.fromContainerInfo(containerInfo, "start"));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("start", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("start", e.getMessage()));
         }
     }
 
@@ -370,11 +324,11 @@ public class ProjectController {
                     .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
                     .body(ContainerResponse.fromContainerInfo(containerInfo, "stop"));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("stop", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("stop", e.getMessage()));
         }
     }
 
@@ -410,11 +364,11 @@ public class ProjectController {
                     .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
                     .body(ContainerResponse.fromContainerInfo(containerInfo, "restart"));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("restart", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("restart", e.getMessage()));
         }
     }
 
@@ -448,11 +402,11 @@ public class ProjectController {
 
             var status = dockerService.getProjectStatus(id);
             return ResponseEntity.ok(ContainerResponse.fromStatus(status));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("get status", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("get status", e.getMessage()));
         }
     }
 
@@ -476,15 +430,15 @@ public class ProjectController {
             var cpuUsage = dockerService.getContainerMetrics(project)[0];
             var memoryUsage = dockerService.getContainerMetrics(project)[1];
             var technology = projectService.getProjectTechnology(id);
-            var serverUrl = status == ContainerStatus.RUNNING ? 
-                dockerService.getProjectUrl(id) : null;
+            
+            var serverUrl = status == ContainerStatus.RUNNING ? dockerService.getProjectUrl(id) : null;
 
             return ResponseEntity.ok(ProjectDetailResponse.fromProject(
                 project, status, cpuUsage, memoryUsage, serverUrl, technology));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return e instanceof AccessDeniedException
+                ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }
