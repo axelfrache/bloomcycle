@@ -32,10 +32,6 @@ public class ProjectService {
     private final GitService gitService;
     private final ProjectTypeAnalyzer projectAnalyzer;
 
-    public List<Project> getProjectsByUserId(Long userId) {
-        return projectRepository.findByOwnerId(userId);
-    }
-
     public Project getProjectById(String id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
@@ -175,12 +171,6 @@ public class ProjectService {
 
     public List<Project> getAllProjects() {
         return projectRepository.findAll();
-    }
-
-    public boolean hasCustomDockerfile(String projectId) {
-        var project = getProjectById(projectId);
-        var projectPath = fileService.getProjectStoragePath(project);
-        return Files.exists(Path.of(projectPath, "Dockerfile"));
     }
 
     public String getProjectTechnology(String projectId) {
