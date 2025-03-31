@@ -84,24 +84,24 @@ public class ProjectController {
             boolean hasGitUrl = gitUrl != null && !gitUrl.trim().isEmpty();
             boolean hasZipFile = sourceZip != null && !sourceZip.isEmpty();
             
+            ResponseEntity<Object> validationResponse = null;
             if (hasGitUrl && hasZipFile) {
-                return ResponseEntity.badRequest().body(Map.of(
+                validationResponse = ResponseEntity.badRequest().body(Map.of(
                     "error", "You must provide either gitUrl or a ZIP file, but not both"
                 ));
-            }
-            
-            if (!hasGitUrl && !hasZipFile) {
-                return ResponseEntity.badRequest().body(Map.of(
+            } else if (!hasGitUrl && !hasZipFile) {
+                validationResponse = ResponseEntity.badRequest().body(Map.of(
                     "error", "You must provide either gitUrl or a ZIP file"
                 ));
             }
-
-            Project project;
-            if (hasGitUrl) {
-                project = projectService.initializeProjectFromGit(name, gitUrl.trim());
-            } else {
-                project = projectService.initializeProjectFromZip(name, sourceZip);
+            
+            if (validationResponse != null) {
+                return validationResponse;
             }
+
+            Project project = hasGitUrl 
+                ? projectService.initializeProjectFromGit(name, gitUrl.trim())
+                : projectService.initializeProjectFromZip(name, sourceZip);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ProjectResponse.fromProject(project, ContainerStatus.STOPPED));
@@ -282,13 +282,13 @@ public class ProjectController {
             checkProjectOwnership(project);
 
             var containerInfo = dockerService.executeOperation(id, ContainerOperation.START)
-                    .get(30, TimeUnit.SECONDS);  // Timeout après 30 secondes
+                    .get(30, TimeUnit.SECONDS);
             return ResponseEntity.ok(ContainerResponse.fromContainerInfo(containerInfo, "start"));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("start", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("start", e.getMessage()));
         }
     }
 
@@ -324,11 +324,11 @@ public class ProjectController {
                     .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
                     .body(ContainerResponse.fromContainerInfo(containerInfo, "stop"));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("stop", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("stop", e.getMessage()));
         }
     }
 
@@ -364,11 +364,11 @@ public class ProjectController {
                     .get(30, TimeUnit.SECONDS);
             return ResponseEntity.accepted()
                     .body(ContainerResponse.fromContainerInfo(containerInfo, "restart"));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("restart", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("restart", e.getMessage()));
         }
     }
 
@@ -430,15 +430,15 @@ public class ProjectController {
             var cpuUsage = dockerService.getContainerMetrics(project)[0];
             var memoryUsage = dockerService.getContainerMetrics(project)[1];
             var technology = projectService.getProjectTechnology(id);
-            var serverUrl = status == ContainerStatus.RUNNING ? 
-                dockerService.getProjectUrl(id) : null;
+            
+            var serverUrl = status == ContainerStatus.RUNNING ? dockerService.getProjectUrl(id) : null;
 
             return ResponseEntity.ok(ProjectDetailResponse.fromProject(
                 project, status, cpuUsage, memoryUsage, serverUrl, technology));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return e instanceof AccessDeniedException
+                ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }
