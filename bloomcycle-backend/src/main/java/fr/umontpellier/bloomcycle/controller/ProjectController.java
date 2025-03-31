@@ -402,11 +402,11 @@ public class ProjectController {
 
             var status = dockerService.getProjectStatus(id);
             return ResponseEntity.ok(ContainerResponse.fromStatus(status));
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ContainerResponse.error("get status", e.getMessage()));
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ContainerResponse.error("get status", e.getMessage()));
         }
     }
 

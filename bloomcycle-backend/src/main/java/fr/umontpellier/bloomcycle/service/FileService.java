@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipEntry;
 
 @Service
 @RequiredArgsConstructor
@@ -37,40 +38,16 @@ public class FileService {
 
         try (var zipInputStream = new ZipInputStream(file.getInputStream())) {
             var entry = zipInputStream.getNextEntry();
-            int fileCount = 0;
-            String commonPrefix = null;
+            var fileCount = 0;
 
-            while (entry != null) {
-                var name = entry.getName().replace("\\", "/");
-                if (commonPrefix == null) {
-                    int firstSlash = name.indexOf('/');
-                    if (firstSlash != -1) {
-                        commonPrefix = name.substring(0, firstSlash + 1);
-                    }
-                } else if (!name.startsWith(commonPrefix)) {
-                    commonPrefix = null;
-                    break;
-                }
-                entry = zipInputStream.getNextEntry();
-            }
+            var commonPrefix = determineCommonPrefix(zipInputStream, entry);
 
             zipInputStream.close();
             try (var newZipStream = new ZipInputStream(file.getInputStream())) {
                 entry = newZipStream.getNextEntry();
+
                 while (entry != null && fileCount < MAX_FILES) {
-                    String name = entry.getName().replace("\\", "/");
-                    
-                    if (commonPrefix != null && name.startsWith(commonPrefix))
-                        name = name.substring(commonPrefix.length());
-
-                    if (name.length() > MAX_PATH_LENGTH)
-                        throw new SecurityException("Path too long: " + name);
-
-                    name = name.replaceAll("[^a-zA-Z0-9./\\-_]+", "_");
-                    var entryPath = targetPath.resolve(name).normalize();
-
-                    if (!entryPath.startsWith(targetPath.normalize()))
-                        throw new SecurityException("ZIP entry contains invalid path: " + name);
+                    var entryPath = getPath(targetPath, entry, commonPrefix);
 
                     if (entry.isDirectory()) {
                         Files.createDirectories(entryPath);
@@ -87,6 +64,45 @@ public class FileService {
                     throw new SecurityException("Too many files in ZIP (max: " + MAX_FILES + ")");
             }
         }
+    }
+
+    private static Path getPath(Path targetPath, ZipEntry entry, String commonPrefix) {
+        var name = entry.getName().replace("\\", "/");
+
+        name = commonPrefix != null && name.startsWith(commonPrefix)
+            ? name.substring(commonPrefix.length())
+            : name;
+
+        if (name.length() > MAX_PATH_LENGTH)
+            throw new SecurityException("Path too long: " + name);
+
+        name = name.replaceAll("[^a-zA-Z0-9./\\-_]+", "_");
+        var entryPath = targetPath.resolve(name).normalize();
+
+        if (!entryPath.startsWith(targetPath.normalize()))
+            throw new SecurityException("ZIP entry contains invalid path: " + name);
+        return entryPath;
+    }
+
+    private String determineCommonPrefix(ZipInputStream zipStream, ZipEntry firstEntry) throws IOException {
+        String commonPrefix = null;
+        var entry = firstEntry;
+        
+        while (entry != null) {
+            var name = entry.getName().replace("\\", "/");
+            
+            if (commonPrefix == null) {
+                int firstSlash = name.indexOf('/');
+                commonPrefix = firstSlash != -1 ? name.substring(0, firstSlash + 1) : null;
+            } else if (!name.startsWith(commonPrefix)) {
+                commonPrefix = null;
+                break;
+            }
+            
+            entry = zipStream.getNextEntry();
+        }
+        
+        return commonPrefix;
     }
 
     public void deleteProjectDirectory(String projectPath) throws IOException {
