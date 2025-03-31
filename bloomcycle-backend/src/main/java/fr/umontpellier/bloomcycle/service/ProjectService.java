@@ -3,9 +3,10 @@ package fr.umontpellier.bloomcycle.service;
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.repository.ProjectRepository;
-import fr.umontpellier.bloomcycle.repository.UserRepository;
+
 import fr.umontpellier.bloomcycle.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -23,10 +24,10 @@ import fr.umontpellier.bloomcycle.exception.UnauthorizedAccessException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
-    private final UserRepository userRepository;
     private final FileService fileService;
     private final GitService gitService;
     private final ProjectTypeAnalyzer projectAnalyzer;
@@ -94,18 +95,29 @@ public class ProjectService {
         Files.writeString(dockerfilePath, dockerfileContent);
     }
 
-    private void analyzeAndSetupProject(Project project) {
+    private void analyzeAndSetupProject(Project project) throws IOException {
         try {
             var projectPath = fileService.getProjectStoragePath(project);
-            var technology = projectAnalyzer.analyzeTechnology(projectPath);
-
             var dockerfilePath = Path.of(projectPath, "Dockerfile");
-            if (!Files.exists(dockerfilePath)) {
+
+            if (Files.exists(dockerfilePath)) {
+                log.info("Using existing Dockerfile for project {}", project.getId());
+                return;
+            }
+
+            try {
+                var technology = projectAnalyzer.analyzeTechnology(projectPath);
                 generateDockerfile(projectPath, technology);
-            } else {
-                throw new RuntimeException("Dockerfile already exists in project directory");
+                log.info("Generated Dockerfile for {} project {}", technology, project.getId());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                    "Project type not recognized. Please include a Dockerfile in your project sources."
+                );
             }
         } catch (Exception e) {
+            if (e instanceof IllegalArgumentException) {
+                throw e;
+            }
             throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
         }
     }

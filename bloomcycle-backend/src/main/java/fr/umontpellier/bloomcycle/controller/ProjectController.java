@@ -10,7 +10,6 @@ import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
 import fr.umontpellier.bloomcycle.service.DockerService;
 import fr.umontpellier.bloomcycle.service.ProjectService;
-import fr.umontpellier.bloomcycle.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -43,69 +42,6 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final DockerService dockerService;
-    private final FileService fileService;
-
-    @Operation(
-        summary = "Create project from Git",
-        description = "Initialize a new project from a Git repository"
-    )
-    @ApiResponse(
-        responseCode = "200",
-        description = "Project created successfully",
-        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-    )
-    @ApiResponse(
-        responseCode = "401",
-        description = "Unauthorized - JWT token is missing or invalid"
-    )
-    @ApiResponse(
-        responseCode = "500",
-        description = "Internal server error while creating project"
-    )
-    @SecurityRequirement(name = "bearer-key")
-    @PostMapping("/git")
-    public ResponseEntity<Project> createProjectFromGit(
-            @Parameter(description = "Name of the project") @RequestParam String projectName,
-            @Parameter(description = "Git repository URL") @RequestParam String gitUrl) {
-        try {
-            var project = projectService.initializeProjectFromGit(projectName, gitUrl);
-            return ResponseEntity.ok(project);
-        } catch (Exception e) {
-            log.error("Error creating project from git: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @Operation(
-        summary = "Create project from ZIP",
-        description = "Initialize a new project from a ZIP file containing the source code"
-    )
-    @ApiResponse(
-        responseCode = "200",
-        description = "Project created successfully",
-        content = @Content(schema = @Schema(implementation = ProjectResponse.class))
-    )
-    @ApiResponse(
-        responseCode = "401",
-        description = "Unauthorized - JWT token is missing or invalid"
-    )
-    @ApiResponse(
-        responseCode = "500",
-        description = "Internal server error while creating project"
-    )
-    @SecurityRequirement(name = "bearer-key")
-    @PostMapping("/zip")
-    public ResponseEntity<Project> createProjectFromZip(
-            @Parameter(description = "Name of the project") @RequestParam String projectName,
-            @Parameter(description = "ZIP file containing project source code") @RequestParam("file") MultipartFile sourceZip) {
-        try {
-            var project = projectService.initializeProjectFromZip(projectName, sourceZip);
-            return ResponseEntity.ok(project);
-        } catch (Exception e) {
-            log.error("Error creating project from zip: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
 
     private void checkProjectOwnership(Project project) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -118,44 +54,62 @@ public class ProjectController {
 
     @Operation(
         summary = "Create a new project",
-        description = "Create a project from either a Git repository or a ZIP file"
+        description = "Create a project from either a Git repository URL or a ZIP file containing the source code"
     )
     @ApiResponse(
-        responseCode = "200",
+        responseCode = "201",
         description = "Project created successfully",
         content = @Content(schema = @Schema(implementation = ProjectResponse.class))
     )
     @ApiResponse(
         responseCode = "400",
-        description = "Invalid input",
+        description = "Invalid input - Must provide either gitUrl or a ZIP file, but not both",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class))
     )
     @ApiResponse(
         responseCode = "401",
         description = "Unauthorized - JWT token is missing or invalid"
     )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Internal server error while creating project"
+    )
     @SecurityRequirement(name = "bearer-key")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> createProject(
-            @Parameter(description = "Project name") @RequestParam("name") String name,
+            @Parameter(description = "Project name", required = true) @RequestParam("name") String name,
             @Parameter(description = "Git repository URL") @RequestParam(value = "gitUrl", required = false) String gitUrl,
             @Parameter(description = "Source code as ZIP file") @RequestParam(value = "sourceZip", required = false) MultipartFile sourceZip) {
         try {
-            Project project;
-            if (gitUrl != null && !gitUrl.isEmpty()) {
-                project = projectService.initializeProjectFromGit(name, gitUrl);
-            } else if (sourceZip != null && !sourceZip.isEmpty()) {
-                project = projectService.initializeProjectFromZip(name, sourceZip);
-            } else {
+            boolean hasGitUrl = gitUrl != null && !gitUrl.trim().isEmpty();
+            boolean hasZipFile = sourceZip != null && !sourceZip.isEmpty();
+            
+            if (hasGitUrl && hasZipFile) {
                 return ResponseEntity.badRequest().body(Map.of(
-                        "error", "You must provide either gitUrl or a ZIP file"
+                    "error", "You must provide either gitUrl or a ZIP file, but not both"
                 ));
             }
-            return ResponseEntity.ok(ProjectResponse.fromProject(project, ContainerStatus.STOPPED));
+            
+            if (!hasGitUrl && !hasZipFile) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "You must provide either gitUrl or a ZIP file"
+                ));
+            }
+
+            Project project;
+            if (hasGitUrl) {
+                project = projectService.initializeProjectFromGit(name, gitUrl.trim());
+            } else {
+                project = projectService.initializeProjectFromZip(name, sourceZip);
+            }
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ProjectResponse.fromProject(project, ContainerStatus.STOPPED));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", e.getMessage(),
-                    "details", e.getCause() != null ? e.getCause().getMessage() : "No additional details"
+            log.error("Error creating project: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Failed to create project",
+                "details", e.getMessage()
             ));
         }
     }
