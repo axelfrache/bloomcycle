@@ -27,7 +27,8 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     volumes:
-      - bloomcycle_data:/data/bloomcycle
+      - bloomcycle_data:/app/projects
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       mysql:
         condition: service_healthy
