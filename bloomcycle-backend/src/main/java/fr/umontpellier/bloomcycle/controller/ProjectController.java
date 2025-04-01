@@ -373,13 +373,13 @@ public class ProjectController {
     }
 
     @Operation(
-        summary = "Get project containers status",
-        description = "Get the current status of all containers for a specific project"
+        summary = "Get project details",
+        description = "Get detailed information about a specific project. Use statusOnly=true to get only the container status."
     )
     @ApiResponse(
         responseCode = "200",
-        description = "Project status retrieved successfully",
-        content = @Content(schema = @Schema(implementation = ContainerResponse.class))
+        description = "Project details retrieved successfully",
+        content = @Content(schema = @Schema(oneOf = {ProjectDetailResponse.class, ContainerResponse.class}))
     )
     @ApiResponse(
         responseCode = "401",
@@ -394,51 +394,47 @@ public class ProjectController {
         description = "Project not found"
     )
     @SecurityRequirement(name = "bearer-key")
-    @GetMapping("/{id}/status")
-    public ResponseEntity<ContainerResponse> getProjectStatus(@PathVariable String id) {
-        try {
-            var project = projectService.getProjectById(id);
-            checkProjectOwnership(project);
-
-            var status = dockerService.getProjectStatus(id);
-            return ResponseEntity.ok(ContainerResponse.fromStatus(status));
-        } catch (Exception e) {
-            return e instanceof AccessDeniedException
-                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(ContainerResponse.error("get status", e.getMessage()));
-        }
-    }
-
-    @Operation(
-        summary = "Get project details",
-        description = "Get detailed information about a specific project"
-    )
-    @ApiResponse(
-        responseCode = "200",
-        description = "Project details retrieved successfully",
-        content = @Content(schema = @Schema(implementation = ProjectDetailResponse.class))
-    )
-    @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}/details")
-    public ResponseEntity<ProjectDetailResponse> getProjectDetails(@PathVariable String id) {
+    public ResponseEntity<?> getProjectDetails(
+            @PathVariable String id,
+            @Parameter(description = "If true, returns only the container status without additional metrics")
+            @RequestParam(required = false, defaultValue = "false") boolean statusOnly) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
 
             var status = dockerService.getProjectStatus(id);
-            var cpuUsage = dockerService.getContainerMetrics(project)[0];
-            var memoryUsage = dockerService.getContainerMetrics(project)[1];
-            var technology = projectService.getProjectTechnology(id);
             
-            var serverUrl = status == ContainerStatus.RUNNING ? dockerService.getProjectUrl(id) : null;
+            if (statusOnly)
+                return ResponseEntity.ok(ContainerResponse.fromStatus(status));
+            
+            var cpuUsage = "0";
+            var memoryUsage = "0";
+            String serverUrl = null;
+            
+            if (status == ContainerStatus.RUNNING) {
+                try {
+                    cpuUsage = dockerService.getContainerMetrics(project)[0];
+                    memoryUsage = dockerService.getContainerMetrics(project)[1];
+                    serverUrl = dockerService.getProjectUrl(id);
+                } catch (Exception e) {
+                    log.warn("Failed to get container metrics for project {}: {}", id, e.getMessage());
+                }
+            }
+            
+            var technology = projectService.getProjectTechnology(id);
 
             return ResponseEntity.ok(ProjectDetailResponse.fromProject(
                 project, status, cpuUsage, memoryUsage, serverUrl, technology));
         } catch (Exception e) {
-            return e instanceof AccessDeniedException
-                ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-                : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            if (e instanceof AccessDeniedException) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            
+            log.error("Error getting project details for {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to get project details", 
+                                 "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
 }
