@@ -17,11 +17,27 @@ export class ProjectService {
     return this.apiService.get<Project>(`projects/${id}`);
   }
 
+  getProjectDetails(id: string): Observable<Project> {
+    return this.apiService.get<Project>(`projects/${id}/details`);
+  }
+
   createProject(project: Partial<Project>): Observable<Project> {
     return this.apiService.post<Project>('projects', project);
   }
 
   deleteProject(id: string): Observable<void> {
     return this.apiService.delete<void>(`projects/${id}`);
+  }
+
+  startProject(id: string): Observable<void> {
+    return this.apiService.post<void>(`projects/${id}/start`, {});
+  }
+
+  restartProject(id: string): Observable<void> {
+    return this.apiService.post<void>(`projects/${id}/restart`, {});
+  }
+
+  stopProject(id: string): Observable<void> {
+    return this.apiService.post<void>(`projects/${id}/stop`, {});
   }
 }

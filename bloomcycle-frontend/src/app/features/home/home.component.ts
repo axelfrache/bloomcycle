@@ -1,8 +1,10 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
+import { ProjectService } from '../../core/services/project.service';
 
 interface Application {
+  id: string;
   name: string;
   status: 'RUNNING' | 'STOPPED' | 'CRASHED';
 }
@@ -36,23 +38,23 @@ interface Application {
               <span class="text-xs">VIEW DETAILS</span>
             </button>
             <ng-container *ngIf="app.status === 'RUNNING'">
-              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+              <button (click)="restartProject(app.id)" class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
                 <i class="ph ph-arrow-clockwise text-green-600"></i>
                 <span class="text-xs">RESTART</span>
               </button>
-              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+              <button (click)="stopProject(app.id)" class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
                 <i class="ph ph-stop-circle text-red-500"></i>
                 <span class="text-xs">STOP</span>
               </button>
             </ng-container>
             <ng-container *ngIf="app.status === 'STOPPED'">
-              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+              <button (click)="startProject(app.id)" class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
                 <i class="ph-fill ph-play text-blue-800"></i>
                 <span class="text-xs">START</span>
               </button>
             </ng-container>
             <ng-container *ngIf="app.status === 'CRASHED'">
-              <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+              <button (click)="restartProject(app.id)" class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
                 <i class="ph ph-arrow-clockwise text-green-600"></i>
                 <span class="text-xs">RESTART</span>
               </button>
@@ -70,13 +72,102 @@ interface Application {
   styleUrl: './home.component.css'
 })
 export class HomeComponent {
-  applications: Application[] = [
-    { name: 'APP1', status: 'RUNNING' },
-    { name: 'APP2', status: 'STOPPED' },
-    { name: 'APP3', status: 'CRASHED' },
-    { name: 'APP4', status: 'RUNNING' },
-    { name: 'APP5', status: 'RUNNING' },
-    { name: 'APP6', status: 'STOPPED' },
-    { name: 'APP7', status: 'RUNNING' }
-  ];
+  applications: Application[] = [];
+  isLoading = false;
+  error: string | null = null;
+
+  constructor(
+    private projectService: ProjectService,
+    private authService: AuthService
+  ) {}
+
+  ngOnInit(): void {
+    this.loadProjects();
+  }
+
+  loadProjects(): void {
+    this.isLoading = true;
+    this.error = null;
+
+    this.projectService.getAllProjects().subscribe({
+      next: (projects) => {
+        this.applications = projects.map(project => ({
+          id: project.id,
+          name: project.name,
+          status: project.containerStatus as 'RUNNING' | 'STOPPED' | 'CRASHED'
+        }));
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.error = err.message || 'Failed to load projects';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  startProject(id: string): void {
+    this.isLoading = true;
+    this.error = null;
+
+    this.projectService.startProject(id).subscribe({
+      next: () => {
+        // Update the status of the project in the UI
+        const project = this.applications.find(app => app.id === id);
+        if (project) {
+          project.status = 'RUNNING';
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.error = err.message || `Failed to start project ${id}`;
+        this.isLoading = false;
+        // Refresh projects to get updated status
+        this.loadProjects();
+      }
+    });
+  }
+
+  stopProject(id: string): void {
+    this.isLoading = true;
+    this.error = null;
+
+    this.projectService.stopProject(id).subscribe({
+      next: () => {
+        // Update the status of the project in the UI
+        const project = this.applications.find(app => app.id === id);
+        if (project) {
+          project.status = 'STOPPED';
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.error = err.message || `Failed to stop project ${id}`;
+        this.isLoading = false;
+        // Refresh projects to get updated status
+        this.loadProjects();
+      }
+    });
+  }
+
+  restartProject(id: string): void {
+    this.isLoading = true;
+    this.error = null;
+
+    this.projectService.restartProject(id).subscribe({
+      next: () => {
+        // Update the status of the project in the UI
+        const project = this.applications.find(app => app.id === id);
+        if (project) {
+          project.status = 'RUNNING';
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.error = err.message || `Failed to restart project ${id}`;
+        this.isLoading = false;
+        // Refresh projects to get updated status
+        this.loadProjects();
+      }
+    });
+  }
 }
