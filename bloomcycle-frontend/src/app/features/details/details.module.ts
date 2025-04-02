@@ -4,10 +4,10 @@ import { DetailsComponent } from './details.component';
 import { RouterModule } from '@angular/router';
 
 @NgModule({
-  declarations: [DetailsComponent],
   imports: [
     CommonModule,
-    RouterModule
+    RouterModule,
+    DetailsComponent
   ],
   exports: [DetailsComponent]
 })
