@@ -16,8 +16,9 @@ public class ProjectDetailResponse {
     private String memoryUsage;
     private String serverUrl;
     private String technology;
+    private boolean autoRestartEnabled;
 
-    public static ProjectDetailResponse fromProject(Project project, ContainerStatus status, String cpuUsage, String memoryUsage, String serverUrl, String technology) {
+    public static ProjectDetailResponse fromProject(Project project, ContainerStatus status, String cpuUsage, String memoryUsage, String serverUrl, String technology, boolean autoRestartEnabled) {
         return ProjectDetailResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
@@ -27,6 +28,7 @@ public class ProjectDetailResponse {
                 .memoryUsage(memoryUsage)
                 .serverUrl(status == ContainerStatus.RUNNING ? serverUrl : null)
                 .technology(technology)
+                .autoRestartEnabled(autoRestartEnabled)
                 .build();
     }
 } 

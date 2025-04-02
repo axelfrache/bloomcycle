@@ -1,5 +1,6 @@
 package fr.umontpellier.bloomcycle.controller;
 
+import fr.umontpellier.bloomcycle.dto.AutoRestartRequest;
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
 import fr.umontpellier.bloomcycle.dto.error.ErrorResponse;
@@ -411,6 +412,7 @@ public class ProjectController {
             var cpuUsage = "0";
             var memoryUsage = "0";
             String serverUrl = null;
+            var autoRestartEnabled = project.isAutoRestartEnabled();
             
             if (status == ContainerStatus.RUNNING) {
                 try {
@@ -425,7 +427,7 @@ public class ProjectController {
             var technology = projectService.getProjectTechnology(id);
 
             return ResponseEntity.ok(ProjectDetailResponse.fromProject(
-                project, status, cpuUsage, memoryUsage, serverUrl, technology));
+                project, status, cpuUsage, memoryUsage, serverUrl, technology, autoRestartEnabled));
         } catch (Exception e) {
             if (e instanceof AccessDeniedException) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -435,6 +437,47 @@ public class ProjectController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to get project details", 
                                  "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+    @Operation(
+            summary = "Configure auto-restart for a project",
+            description = "Enable or disable automatic restart for the specified project"
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Auto-restart configuration updated successfully"
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - User doesn't own this project"
+    )
+    @SecurityRequirement(name = "bearer-key")
+    @PostMapping("/{id}/auto-restart")
+    public ResponseEntity<?> configureAutoRestart(
+            @PathVariable String id,
+            @RequestBody AutoRestartRequest request) {
+        try {
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            dockerService.configureAutoRestart(id, request.isEnabled());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Auto-restart " + (request.isEnabled() ? "enabled" : "disabled"),
+                    "projectId", id,
+                    "autoRestartEnabled", request.isEnabled()
+            ));
+        } catch (Exception e) {
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to configure auto-restart",
+                            "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
 }

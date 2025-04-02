@@ -248,4 +248,48 @@ public class DockerService {
             return null;
         }
     }
+
+    public void configureAutoRestart(String projectId, boolean enabled) {
+        try {
+            var project = projectService.getProjectById(projectId);
+            var containerName = getContainerName(project);
+
+            String[] command;
+            if (enabled) {
+                command = new String[]{
+                        "docker", "update", "--restart", "always", containerName
+                };
+            } else {
+                command = new String[]{
+                        "docker", "update", "--restart", "no", containerName
+                };
+            }
+
+            var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
+            executeDockerCommand(processBuilder);
+
+            projectService.updateAutoRestartSetting(projectId, enabled);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to configure auto-restart for project " + projectId, e);
+        }
+    }
+
+    public boolean isAutoRestartEnabled(String projectId) {
+        try {
+            var project = projectService.getProjectById(projectId);
+            var command = new String[]{
+                    "docker", "inspect",
+                    "--format", "{{.HostConfig.RestartPolicy.Name}}",
+                    getContainerName(project)
+            };
+
+            var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
+            String policy = executeDockerCommand(processBuilder);
+
+            return "always".equals(policy) || "unless-stopped".equals(policy);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

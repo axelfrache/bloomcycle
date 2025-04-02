@@ -178,4 +178,11 @@ public class ProjectService {
         var projectPath = fileService.getProjectStoragePath(project);
         return projectAnalyzer.analyzeTechnology(projectPath).name();
     }
+
+    public void updateAutoRestartSetting(String projectId, boolean enabled) {
+        Project project = getProjectById(projectId);
+        project.setAutoRestartEnabled(enabled);
+        projectRepository.save(project);
+        log.info("Updated auto-restart setting for project {} to {}", projectId, enabled);
+    }
 }
