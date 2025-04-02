@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { ProjectService } from '../../core/services/project.service';
+import { Router } from '@angular/router';
 
 interface Application {
   id: string;
@@ -33,7 +34,7 @@ interface Application {
             {{app.status}}
           </td>
           <td class="flex gap-3 border-2 border-solid border-gray-200" style="padding: 16px;">
-            <button class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
+            <button (click)="navigateToDetails(app.id)" class="flex items-center gap-2 text-gray-600 hover:bg-gray-200 p-2 rounded-md" style="padding: 6px 12px;">
               <i class="ph ph-eye"></i>
               <span class="text-xs">VIEW DETAILS</span>
             </button>
@@ -78,7 +79,8 @@ export class HomeComponent {
 
   constructor(
     private projectService: ProjectService,
-    private authService: AuthService
+    private authService: AuthService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -111,7 +113,6 @@ export class HomeComponent {
 
     this.projectService.startProject(id).subscribe({
       next: () => {
-        // Update the status of the project in the UI
         const project = this.applications.find(app => app.id === id);
         if (project) {
           project.status = 'RUNNING';
@@ -121,7 +122,6 @@ export class HomeComponent {
       error: (err) => {
         this.error = err.message || `Failed to start project ${id}`;
         this.isLoading = false;
-        // Refresh projects to get updated status
         this.loadProjects();
       }
     });
@@ -133,7 +133,6 @@ export class HomeComponent {
 
     this.projectService.stopProject(id).subscribe({
       next: () => {
-        // Update the status of the project in the UI
         const project = this.applications.find(app => app.id === id);
         if (project) {
           project.status = 'STOPPED';
@@ -143,7 +142,6 @@ export class HomeComponent {
       error: (err) => {
         this.error = err.message || `Failed to stop project ${id}`;
         this.isLoading = false;
-        // Refresh projects to get updated status
         this.loadProjects();
       }
     });
@@ -155,7 +153,6 @@ export class HomeComponent {
 
     this.projectService.restartProject(id).subscribe({
       next: () => {
-        // Update the status of the project in the UI
         const project = this.applications.find(app => app.id === id);
         if (project) {
           project.status = 'RUNNING';
@@ -165,9 +162,12 @@ export class HomeComponent {
       error: (err) => {
         this.error = err.message || `Failed to restart project ${id}`;
         this.isLoading = false;
-        // Refresh projects to get updated status
         this.loadProjects();
       }
     });
+  }
+
+  navigateToDetails(id: string): void {
+    this.router.navigate(['/projects', id]);
   }
 }

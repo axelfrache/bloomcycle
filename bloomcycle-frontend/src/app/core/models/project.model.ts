@@ -5,4 +5,8 @@ export interface Project {
   name: string;
   containerStatus: string;
   owner: User;
+  cpuUsage: number;
+  memoryUsage: number;
+  serverUrl: string;
+  technology: string;
 }
