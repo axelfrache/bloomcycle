@@ -3,6 +3,8 @@ package fr.umontpellier.bloomcycle.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -23,6 +25,8 @@ import fr.umontpellier.bloomcycle.model.Project;
 @RequiredArgsConstructor
 public class DockerService {
     
+    private static final Logger log = LoggerFactory.getLogger(DockerService.class);
+
     @Value("${app.storage.path}")
     private String storagePath;
 
@@ -84,7 +88,7 @@ public class DockerService {
 
     private void stopAndRemoveContainer(Project project) throws IOException, InterruptedException {
         var stopCommand = new String[]{
-            "docker", "rm", "-f", 
+            "docker", "stop", 
             getContainerName(project)
         };
         var processBuilder = new ProcessBuilder(stopCommand)
@@ -92,8 +96,22 @@ public class DockerService {
         
         try {
             executeDockerCommand(processBuilder);
+            
+            var rmCommand = new String[]{
+                "docker", "rm", 
+                getContainerName(project)
+            };
+            var rmBuilder = new ProcessBuilder(rmCommand)
+                .redirectErrorStream(true);
+            executeDockerCommand(rmBuilder);
         } catch (RuntimeException e) {
-            throw new RuntimeException("Failed to stop and remove container for project " + project.getId(), e);
+            var forceCommand = new String[]{
+                "docker", "rm", "-f", 
+                getContainerName(project)
+            };
+            var forceBuilder = new ProcessBuilder(forceCommand)
+                .redirectErrorStream(true);
+            executeDockerCommand(forceBuilder);
         }
     }
 
@@ -102,7 +120,7 @@ public class DockerService {
             "docker", "run", "-d",
             "-p", "0:3000",
             "--name", getContainerName(project),
-            "--restart", "on-failure:3",
+            "--restart", project.isAutoRestartEnabled() ? "unless-stopped" : "on-failure:3",
             getContainerName(project)
         };
         
@@ -253,24 +271,37 @@ public class DockerService {
         try {
             var project = projectService.getProjectById(projectId);
             var containerName = getContainerName(project);
-
-            String[] command;
-            if (enabled) {
-                command = new String[]{
-                        "docker", "update", "--restart", "always", containerName
-                };
-            } else {
-                command = new String[]{
-                        "docker", "update", "--restart", "no", containerName
-                };
-            }
-
-            var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
-            executeDockerCommand(processBuilder);
-
+            var containerStatus = getProjectStatus(projectId);
+            
+            log.info("Configuring auto-restart for project {} to {}", projectId, enabled);
             projectService.updateAutoRestartSetting(projectId, enabled);
-
+            
+            if (containerStatus == ContainerStatus.RUNNING) {
+                String restartPolicy = enabled ? "unless-stopped" : "on-failure:3";
+                log.info("Updating running container {} with restart policy: {}", containerName, restartPolicy);
+                
+                String[] command = new String[]{
+                        "docker", "update", "--restart", restartPolicy, containerName
+                };
+                
+                var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
+                String output = executeDockerCommand(processBuilder);
+                log.info("Docker update command output: {}", output);
+                
+                String[] verifyCommand = new String[]{
+                        "docker", "inspect",
+                        "--format", "{{.HostConfig.RestartPolicy.Name}}",
+                        containerName
+                };
+                var verifyBuilder = new ProcessBuilder(verifyCommand).redirectErrorStream(true);
+                String policy = executeDockerCommand(verifyBuilder);
+                log.info("Verified restart policy for container {}: {}", containerName, policy);
+            } else {
+                log.info("Container {} is not running, restart policy will be applied on next start", containerName);
+            }
+            
         } catch (Exception e) {
+            log.error("Failed to configure auto-restart for project {}: {}", projectId, e.getMessage(), e);
             throw new RuntimeException("Failed to configure auto-restart for project " + projectId, e);
         }
     }
@@ -278,6 +309,12 @@ public class DockerService {
     public boolean isAutoRestartEnabled(String projectId) {
         try {
             var project = projectService.getProjectById(projectId);
+            
+            var containerStatus = getProjectStatus(projectId);
+            if (containerStatus != ContainerStatus.RUNNING) {
+                return project.isAutoRestartEnabled();
+            }
+            
             var command = new String[]{
                     "docker", "inspect",
                     "--format", "{{.HostConfig.RestartPolicy.Name}}",
