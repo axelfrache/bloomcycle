@@ -129,23 +129,15 @@ public class ProjectController {
     )
     @ApiResponse(
         responseCode = "401",
-        description = "Unauthorized - JWT token is missing or invalid",
-        content = @Content(
-            mediaType = "application/json",
-            schema = @Schema(implementation = ErrorResponse.class)
-        )
+        description = "Unauthorized - JWT token is missing or invalid"
     )
     @ApiResponse(
         responseCode = "400",
-        description = "Bad request - Error while retrieving projects",
-        content = @Content(
-            mediaType = "application/json",
-            schema = @Schema(implementation = ErrorResponse.class)
-        )
+        description = "Bad request - Error while retrieving projects"
     )
     @SecurityRequirement(name = "bearer-key")
-    @GetMapping("/me")
-    public ResponseEntity<List<ProjectResponse>> getCurrentUserProjects() {
+    @GetMapping
+    public ResponseEntity<List<ProjectResponse>> getAllProjects() {
         try {
             var projects = projectService.getCurrentUserProjects()
                     .stream()
@@ -194,24 +186,6 @@ public class ProjectController {
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
-        }
-    }
-
-    @Operation(summary = "Get all projects")
-    @GetMapping
-    public ResponseEntity<List<ProjectResponse>> getAllProjects() {
-        try {
-            var projects = projectService.getAllProjects()
-                    .stream()
-                    .map(project -> {
-                        var containerStatus = dockerService.getProjectStatus(project.getId());
-                        return ProjectResponse.fromProject(project, containerStatus);
-                    })
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(projects);
-        } catch (Exception e) {
-            log.error("Error getting all projects", e);
             return ResponseEntity.badRequest().body(null);
         }
     }
