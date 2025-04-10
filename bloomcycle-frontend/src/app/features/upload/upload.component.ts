@@ -48,6 +48,10 @@ import { FormsModule } from '@angular/forms';
           Valider l'upload
         </button>
 
+        <div *ngIf="isLoading" class="flex justify-center items-center h-4">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+
         <div *ngIf="error" class="text-red-500 mt-2">
           {{ error }}
         </div>
@@ -65,6 +69,7 @@ export class UploadComponent {
   uploadSuccess = false;
   projectName: string = '';
   gitUrl: string = '';
+  isLoading = false;
 
   constructor(private projectService: ProjectService, private router: Router) {}
 
@@ -90,16 +95,19 @@ export class UploadComponent {
   uploadFile(): void {
     if (!this.file || !this.projectName) return;
 
+    this.isLoading = true;
     const formData = new FormData();
     formData.append('name', this.projectName);
     formData.append('sourceZip', this.file);
 
     this.projectService.createProject(formData).subscribe({
       next: (project) => {
+        this.isLoading = false;
         this.uploadSuccess = true;
-        this.router.navigate(['/home']);
+        setTimeout(() => this.router.navigate(['/home']), 1000);
       },
       error: (error: any) => {
+        this.isLoading = false;
         this.error = error.error?.message || 'An error occurred during upload';
       }
     });
@@ -108,15 +116,18 @@ export class UploadComponent {
   uploadGitUrl(): void {
     if (!this.gitUrl) return;
 
+    this.isLoading = true;
     const formData = new FormData();
     formData.append('name', this.projectName);
     formData.append('gitUrl', this.gitUrl);
     this.projectService.createProject(formData).subscribe({
       next: (project) => {
+        this.isLoading = false;
         this.uploadSuccess = true;
-        this.router.navigate(['/home']);
+        setTimeout(() => this.router.navigate(['/home']), 1000);
       },
       error: (error: any) => {
+        this.isLoading = false;
         this.error = error.error?.message || 'An error occurred while processing the Git repository';
       }
     });
