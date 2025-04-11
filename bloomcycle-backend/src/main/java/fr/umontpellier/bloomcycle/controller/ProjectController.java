@@ -388,7 +388,7 @@ public class ProjectController {
             var memoryUsage = "0";
             String serverUrl = null;
             var autoRestartEnabled = project.isAutoRestartEnabled();
-
+            
             if (status == ContainerStatus.RUNNING) {
                 try {
                     cpuUsage = dockerService.getContainerMetrics(project)[0];
@@ -414,6 +414,7 @@ public class ProjectController {
                                  "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
+
     @Operation(
             summary = "Configure auto-restart for a project",
             description = "Enable or disable automatic restart for the specified project"
@@ -456,6 +457,27 @@ public class ProjectController {
         }
     }
 
+    @Operation(
+        summary = "Get project logs",
+        description = "Get the logs from the project's container. The container must be running."
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Logs retrieved successfully",
+        content = @Content(schema = @Schema(implementation = LogsResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "400",
+        description = "Container is not running"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Error retrieving project logs"
+    )
     @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}/logs")
     public ResponseEntity<LogsResponse> getProjectLogs(@PathVariable String id) {
@@ -466,8 +488,11 @@ public class ProjectController {
             // Vérifier si le conteneur est en cours d'exécution
             var status = dockerService.getProjectStatus(id);
             if (status != ContainerStatus.RUNNING) {
-                return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Container is not running"));
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(LogsResponse.builder()
+                        .id(id)
+                        .logs("Container is not running")
+                        .build());
             }
 
             var logs = dockerService.getProjectLogs(project);
@@ -475,7 +500,12 @@ public class ProjectController {
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Error getting logs for project {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(LogsResponse.builder()
+                    .id(id)
+                    .logs("Error retrieving logs: " + e.getMessage())
+                    .build());
         }
     }
 }
