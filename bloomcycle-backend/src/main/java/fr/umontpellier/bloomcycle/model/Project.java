@@ -22,6 +22,9 @@ public class Project {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "auto_restart_enabled")
+    private boolean autoRestartEnabled = false;
+
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
