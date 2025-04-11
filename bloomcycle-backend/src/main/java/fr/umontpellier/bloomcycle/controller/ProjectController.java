@@ -4,6 +4,7 @@ import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
 import fr.umontpellier.bloomcycle.dto.error.ErrorResponse;
 import fr.umontpellier.bloomcycle.dto.ProjectDetailResponse;
+import fr.umontpellier.bloomcycle.dto.LogsResponse;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
@@ -435,6 +436,23 @@ public class ProjectController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to get project details", 
                                  "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
+    @SecurityRequirement(name = "bearer-key")
+    @GetMapping("/{id}/logs")
+    public ResponseEntity<LogsResponse> getProjectLogs(@PathVariable String id) {
+        try {
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            var logs = dockerService.getProjectLogs(project);
+
+            return ResponseEntity.ok(LogsResponse.fromLogs(project, logs));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }
