@@ -257,6 +257,33 @@ public class DockerService {
         };
     }
 
+    public String getProjectLogs(Project project) throws IOException, InterruptedException {
+        var runCommand = new String[]{
+                "docker", "logs", getContainerName(project)
+        };
+
+        ProcessBuilder processBuilder = new ProcessBuilder(runCommand)
+                .redirectErrorStream(true);
+
+        Process process = processBuilder.start();
+        StringBuilder output = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("Failed to get project logs. Exit code: " + exitCode);
+        }
+
+        return output.toString();
+    }
+
     public String getProjectUrl(String projectId) {
         try {
             var project = projectService.getProjectById(projectId);

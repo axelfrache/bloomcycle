@@ -5,6 +5,7 @@ import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
 import fr.umontpellier.bloomcycle.dto.error.ErrorResponse;
 import fr.umontpellier.bloomcycle.dto.ProjectDetailResponse;
+import fr.umontpellier.bloomcycle.dto.LogsResponse;
 import fr.umontpellier.bloomcycle.model.Project;
 import fr.umontpellier.bloomcycle.model.User;
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
@@ -413,6 +414,7 @@ public class ProjectController {
                                  "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
+
     @Operation(
             summary = "Configure auto-restart for a project",
             description = "Enable or disable automatic restart for the specified project"
@@ -452,6 +454,58 @@ public class ProjectController {
                     : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to configure auto-restart",
                             "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
+    @Operation(
+        summary = "Get project logs",
+        description = "Get the logs from the project's container. The container must be running."
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Logs retrieved successfully",
+        content = @Content(schema = @Schema(implementation = LogsResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "400",
+        description = "Container is not running"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Error retrieving project logs"
+    )
+    @SecurityRequirement(name = "bearer-key")
+    @GetMapping("/{id}/logs")
+    public ResponseEntity<LogsResponse> getProjectLogs(@PathVariable String id) {
+        try {
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            // Vérifier si le conteneur est en cours d'exécution
+            var status = dockerService.getProjectStatus(id);
+            if (status != ContainerStatus.RUNNING) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(LogsResponse.builder()
+                        .id(id)
+                        .logs("Container is not running")
+                        .build());
+            }
+
+            var logs = dockerService.getProjectLogs(project);
+            return ResponseEntity.ok(LogsResponse.fromLogs(project, logs));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            log.error("Error getting logs for project {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(LogsResponse.builder()
+                    .id(id)
+                    .logs("Error retrieving logs: " + e.getMessage())
+                    .build());
         }
     }
 }
