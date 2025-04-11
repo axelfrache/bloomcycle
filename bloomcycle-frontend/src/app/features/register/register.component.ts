@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule, CommonModule],
   template: `
     <div class="max-w-sm mx-auto p-6 text-center" style="margin: 0 auto; padding: 20px;">
       <img src="assets/logo.png" alt="BloomCycle" class="h-24" style="margin: 0 auto;">
@@ -74,14 +75,13 @@ import { AuthService } from '../../core/services/auth.service';
           </label>
         </div>
 
-        @if (error) {
-          <div class="error-message">{{error}}</div>
-        }
+        <div *ngIf="error" class="alert alert-error text-sm">{{error}}</div>
 
         <button
           type="submit"
           class="bg-[#6B7F94] text-white rounded-full text-xl w-full mt-5" style="padding: 12px; background-color: #6B7F94; margin: 20px 0; border-radius: 25px;"
           [disabled]="!registerForm.form.valid || isLoading || !passwordsMatch()">
+          <span *ngIf="isLoading" class="loading loading-spinner loading-sm mr-2"></span>
           {{isLoading ? 'Loading...' : 'Sign Up'}}
         </button>
 

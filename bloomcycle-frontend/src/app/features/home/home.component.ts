@@ -18,7 +18,13 @@ interface Application {
     <div class="max-w-screen-xl" style="margin: 0 auto; padding: 40px 20px;">
       <h1 class="text-2xl font-semibold" style="margin-bottom: 40px;">Your Projects</h1>
 
-      <table class="w-full bg-white rounded-lg overflow-hidden">
+      <div *ngIf="isLoading" class="flex justify-center items-center h-64">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+
+      <div *ngIf="error" class="alert alert-error mb-6 max-w-2xl mx-auto text-center">{{ error }}</div>
+
+      <table *ngIf="!isLoading && applications.length > 0" class="w-full bg-white rounded-lg overflow-hidden">
         <thead>
         <tr>
           <th class="text-left font-bold bg-gray-100 border-2 border-solid border-gray-200" style="padding: 16px;">Application</th>
@@ -68,6 +74,10 @@ interface Application {
         </tr>
         </tbody>
       </table>
+
+      <div *ngIf="!isLoading && applications.length === 0" class="flex justify-center items-center h-64 text-gray-500">
+        No projects found. Create one to get started.
+      </div>
     </div>
   `,
   styleUrl: './home.component.css'
@@ -171,3 +181,4 @@ export class HomeComponent {
     this.router.navigate(['/projects', id]);
   }
 }
+
