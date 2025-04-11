@@ -3,6 +3,8 @@ package fr.umontpellier.bloomcycle.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -12,15 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.function.Predicate;
 
 import fr.umontpellier.bloomcycle.model.container.ContainerStatus;
 import fr.umontpellier.bloomcycle.model.container.ContainerOperation;
@@ -31,6 +25,8 @@ import fr.umontpellier.bloomcycle.model.Project;
 @RequiredArgsConstructor
 public class DockerService {
     
+    private static final Logger log = LoggerFactory.getLogger(DockerService.class);
+
     @Value("${app.storage.path}")
     private String storagePath;
 
@@ -40,8 +36,6 @@ public class DockerService {
     private final ExecutorService dockerExecutor = Executors.newFixedThreadPool(10);
     private final FileService fileService;
     private final ProjectService projectService;
-    
-    private static final String PROJECT_STATE_DIR = "project_states";
 
     private String getContainerName(Project project) {
         return "project-" + project.getId();
@@ -67,67 +61,84 @@ public class DockerService {
         }
 
         var exitCode = process.waitFor();
-        if (exitCode != 0)
+        if (exitCode != 0) {
             throw new RuntimeException("Command failed with output: " + output);
+        }
 
         return output.toString().trim();
     }
 
     private void buildImage(Project project) throws IOException, InterruptedException {
         var projectPath = fileService.getProjectStoragePath(project);
-        var containerName = getContainerName(project);
-        var commandArgs = List.of(
+        var commandArgs = new String[]{
             "docker", "build", 
-            "--cache-from", containerName,
-            "-t", containerName, 
+            "-t", getContainerName(project), 
             projectPath
-        );
-        
+        };
         var processBuilder = new ProcessBuilder(commandArgs)
             .directory(new File(projectPath))
             .redirectErrorStream(true);
         
         try {
             executeDockerCommand(processBuilder);
-            saveProjectState(project);
         } catch (RuntimeException e) {
             throw new RuntimeException("Failed to build image for project " + project.getId(), e);
         }
     }
 
-    private void stopContainer(Project project) throws IOException, InterruptedException {
-        var containerName = getContainerName(project);
-        var processBuilder = new ProcessBuilder(
-            "docker", "rm", "-f", containerName
-        ).redirectErrorStream(true);
+    private void stopAndRemoveContainer(Project project) throws IOException, InterruptedException {
+        var stopCommand = new String[]{
+            "docker", "stop", 
+            getContainerName(project)
+        };
+        var processBuilder = new ProcessBuilder(stopCommand)
+            .redirectErrorStream(true);
         
         try {
             executeDockerCommand(processBuilder);
+            
+            var rmCommand = new String[]{
+                "docker", "rm", 
+                getContainerName(project)
+            };
+            var rmBuilder = new ProcessBuilder(rmCommand)
+                .redirectErrorStream(true);
+            executeDockerCommand(rmBuilder);
         } catch (RuntimeException e) {
-            throw new RuntimeException("Failed to stop and remove container for project " + project.getId(), e);
+            var forceCommand = new String[]{
+                "docker", "rm", "-f", 
+                getContainerName(project)
+            };
+            var forceBuilder = new ProcessBuilder(forceCommand)
+                .redirectErrorStream(true);
+            executeDockerCommand(forceBuilder);
         }
     }
 
-    private void startContainer(Project project) throws IOException, InterruptedException {
-        var containerName = getContainerName(project);
-        var processBuilder = new ProcessBuilder(
+    private String startContainer(Project project) throws IOException, InterruptedException {
+        var runCommand = new String[]{
             "docker", "run", "-d",
             "-p", "0:3000",
-            "--name", containerName,
-            "--restart", "on-failure:3",
-            containerName
-        ).redirectErrorStream(true);
+            "--name", getContainerName(project),
+            "--restart", project.isAutoRestartEnabled() ? "unless-stopped" : "on-failure:3",
+            getContainerName(project)
+        };
         
-        executeDockerCommand(processBuilder);
+        var processBuilder = new ProcessBuilder(runCommand)
+            .redirectErrorStream(true);
+        
+        return executeDockerCommand(processBuilder);
     }
 
     private String getContainerPort(Project project) throws IOException, InterruptedException {
-        var containerName = getContainerName(project);
-        var processBuilder = new ProcessBuilder(
+        var inspectCommand = new String[]{
             "docker", "inspect",
             "--format", "{{(index (index .NetworkSettings.Ports \"3000/tcp\") 0).HostPort}}",
-            containerName
-        ).redirectErrorStream(true);
+            getContainerName(project)
+        };
+        
+        var processBuilder = new ProcessBuilder(inspectCommand)
+            .redirectErrorStream(true);
         
         return executeDockerCommand(processBuilder);
     }
@@ -143,15 +154,14 @@ public class DockerService {
                 var projectPath = fileService.getProjectStoragePath(project);
                 var dockerfilePath = Path.of(projectPath, "Dockerfile");
 
-                if (!Files.exists(dockerfilePath))
+                if (!Files.exists(dockerfilePath)) {
                     return ContainerInfo.builder()
                             .status(ContainerStatus.ERROR)
                             .build();
+                }
 
-                if (!imageExists(project) || shouldRebuildImage(project))
-                    buildImage(project);
-                
-                stopContainer(project);
+                buildImage(project);
+                stopAndRemoveContainer(project);
                 startContainer(project);
                 
                 var hostPort = getContainerPort(project);
@@ -173,7 +183,7 @@ public class DockerService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 var project = projectService.getProjectById(projectId);
-                stopContainer(project);
+                stopAndRemoveContainer(project);
                 return ContainerInfo.builder()
                         .status(ContainerStatus.STOPPED)
                         .build();
@@ -189,10 +199,9 @@ public class DockerService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 var project = projectService.getProjectById(projectId);
-                var containerName = getContainerName(project);
-                var processBuilder = new ProcessBuilder(
-                    "docker", "restart", containerName
-                ).redirectErrorStream(true);
+                var restartCommand = new String[]{"docker", "restart", getContainerName(project)};
+                var processBuilder = new ProcessBuilder(restartCommand)
+                    .redirectErrorStream(true);
                 
                 executeDockerCommand(processBuilder);
                 
@@ -209,104 +218,6 @@ public class DockerService {
                         .build();
             }
         }, dockerExecutor);
-    }
-
-    private boolean imageExists(Project project) throws IOException, InterruptedException {
-        var containerName = getContainerName(project);
-        var processBuilder = new ProcessBuilder(
-            "docker", "image", "inspect", containerName
-        ).redirectErrorStream(true);
-        
-        try {
-            executeDockerCommand(processBuilder);
-            return true;
-        } catch (RuntimeException e) {
-            return false;
-        }
-    }
-
-    private boolean shouldRebuildImage(Project project) {
-        var projectPath = fileService.getProjectStoragePath(project);
-        var stateFilePath = getProjectStatePath(project);
-        
-        if (!Files.exists(stateFilePath))
-            return true;
-        
-        try {
-            var currentHash = calculateProjectHash(projectPath);
-            var savedHash = Files.readString(stateFilePath);
-            
-            return !currentHash.equals(savedHash);
-        } catch (Exception e) {
-            return true;
-        }
-    }
-
-    private void saveProjectState(Project project) throws IOException {
-        var projectPath = fileService.getProjectStoragePath(project);
-        var stateFilePath = getProjectStatePath(project);
-        
-        Files.createDirectories(stateFilePath.getParent());
-        var projectHash = calculateProjectHash(projectPath);
-        Files.writeString(stateFilePath, projectHash);
-    }
-
-    private String calculateProjectHash(String projectPath) throws IOException {
-        var dockerfilePath = Path.of(projectPath, "Dockerfile");
-        
-        if (!Files.exists(dockerfilePath))
-            throw new IOException("Dockerfile not found in project");
-        
-        try {
-            var digest = MessageDigest.getInstance("SHA-256");
-            
-            var dockerfileContent = Files.readString(dockerfilePath);
-            digest.update(dockerfileContent.getBytes(StandardCharsets.UTF_8));
-            
-            Predicate<Path> isRelevantFile = p -> {
-                var fileName = p.getFileName().toString();
-                var pathStr = p.toString();
-                return !fileName.startsWith(".") && 
-                       !pathStr.contains("/node_modules/") && 
-                       !pathStr.contains("/target/") && 
-                       !pathStr.contains("/.git/");
-            };
-            
-            Predicate<String> isCriticalFile = fileName -> 
-                List.of("package.json", "package-lock.json", "pom.xml", "build.gradle")
-                    .contains(fileName);
-            
-            try (var pathStream = Files.walk(Paths.get(projectPath))) {
-                pathStream
-                    .filter(Files::isRegularFile)
-                    .filter(isRelevantFile)
-                    .forEach(p -> {
-                        try {
-                            var attrs = Files.readAttributes(p, BasicFileAttributes.class);
-                            var fileInfo = p + "|" + 
-                                          attrs.lastModifiedTime().toMillis() + "|" + 
-                                          attrs.size();
-                            digest.update(fileInfo.getBytes(StandardCharsets.UTF_8));
-                            
-                            var fileName = p.getFileName().toString();
-                            if (isCriticalFile.test(fileName)) {
-                                var content = Files.readString(p);
-                                digest.update(content.getBytes(StandardCharsets.UTF_8));
-                            }
-                        } catch (IOException e) {
-                            System.err.println("Erreur lors du traitement du fichier " + p + ": " + e.getMessage());
-                        }
-                    });
-            }
-            
-            return Base64.getEncoder().encodeToString(digest.digest());
-        } catch (NoSuchAlgorithmException e) {
-            throw new IOException("Failed to calculate project hash", e);
-        }
-    }
-
-    private Path getProjectStatePath(Project project) {
-        return Paths.get(storagePath, PROJECT_STATE_DIR, project.getId() + ".hash");
     }
 
     public ContainerStatus getProjectStatus(String projectId) {
@@ -353,6 +264,69 @@ public class DockerService {
             return buildServerUrl(hostPort);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    public void configureAutoRestart(String projectId, boolean enabled) {
+        try {
+            var project = projectService.getProjectById(projectId);
+            var containerName = getContainerName(project);
+            var containerStatus = getProjectStatus(projectId);
+            
+            log.info("Configuring auto-restart for project {} to {}", projectId, enabled);
+            projectService.updateAutoRestartSetting(projectId, enabled);
+            
+            if (containerStatus == ContainerStatus.RUNNING) {
+                String restartPolicy = enabled ? "unless-stopped" : "on-failure:3";
+                log.info("Updating running container {} with restart policy: {}", containerName, restartPolicy);
+                
+                String[] command = new String[]{
+                        "docker", "update", "--restart", restartPolicy, containerName
+                };
+                
+                var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
+                String output = executeDockerCommand(processBuilder);
+                log.info("Docker update command output: {}", output);
+                
+                String[] verifyCommand = new String[]{
+                        "docker", "inspect",
+                        "--format", "{{.HostConfig.RestartPolicy.Name}}",
+                        containerName
+                };
+                var verifyBuilder = new ProcessBuilder(verifyCommand).redirectErrorStream(true);
+                String policy = executeDockerCommand(verifyBuilder);
+                log.info("Verified restart policy for container {}: {}", containerName, policy);
+            } else {
+                log.info("Container {} is not running, restart policy will be applied on next start", containerName);
+            }
+            
+        } catch (Exception e) {
+            log.error("Failed to configure auto-restart for project {}: {}", projectId, e.getMessage(), e);
+            throw new RuntimeException("Failed to configure auto-restart for project " + projectId, e);
+        }
+    }
+
+    public boolean isAutoRestartEnabled(String projectId) {
+        try {
+            var project = projectService.getProjectById(projectId);
+            
+            var containerStatus = getProjectStatus(projectId);
+            if (containerStatus != ContainerStatus.RUNNING) {
+                return project.isAutoRestartEnabled();
+            }
+            
+            var command = new String[]{
+                    "docker", "inspect",
+                    "--format", "{{.HostConfig.RestartPolicy.Name}}",
+                    getContainerName(project)
+            };
+
+            var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
+            String policy = executeDockerCommand(processBuilder);
+
+            return "always".equals(policy) || "unless-stopped".equals(policy);
+        } catch (Exception e) {
+            return false;
         }
     }
 }

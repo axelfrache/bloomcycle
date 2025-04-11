@@ -1,5 +1,6 @@
 package fr.umontpellier.bloomcycle.controller;
 
+import fr.umontpellier.bloomcycle.dto.AutoRestartRequest;
 import fr.umontpellier.bloomcycle.dto.ProjectResponse;
 import fr.umontpellier.bloomcycle.dto.container.ContainerResponse;
 import fr.umontpellier.bloomcycle.dto.error.ErrorResponse;
@@ -128,23 +129,15 @@ public class ProjectController {
     )
     @ApiResponse(
         responseCode = "401",
-        description = "Unauthorized - JWT token is missing or invalid",
-        content = @Content(
-            mediaType = "application/json",
-            schema = @Schema(implementation = ErrorResponse.class)
-        )
+        description = "Unauthorized - JWT token is missing or invalid"
     )
     @ApiResponse(
         responseCode = "400",
-        description = "Bad request - Error while retrieving projects",
-        content = @Content(
-            mediaType = "application/json",
-            schema = @Schema(implementation = ErrorResponse.class)
-        )
+        description = "Bad request - Error while retrieving projects"
     )
     @SecurityRequirement(name = "bearer-key")
-    @GetMapping("/me")
-    public ResponseEntity<List<ProjectResponse>> getCurrentUserProjects() {
+    @GetMapping
+    public ResponseEntity<List<ProjectResponse>> getAllProjects() {
         try {
             var projects = projectService.getCurrentUserProjects()
                     .stream()
@@ -193,24 +186,6 @@ public class ProjectController {
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
-        }
-    }
-
-    @Operation(summary = "Get all projects")
-    @GetMapping
-    public ResponseEntity<List<ProjectResponse>> getAllProjects() {
-        try {
-            var projects = projectService.getAllProjects()
-                    .stream()
-                    .map(project -> {
-                        var containerStatus = dockerService.getProjectStatus(project.getId());
-                        return ProjectResponse.fromProject(project, containerStatus);
-                    })
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(projects);
-        } catch (Exception e) {
-            log.error("Error getting all projects", e);
             return ResponseEntity.badRequest().body(null);
         }
     }
@@ -411,6 +386,7 @@ public class ProjectController {
             var cpuUsage = "0";
             var memoryUsage = "0";
             String serverUrl = null;
+            var autoRestartEnabled = project.isAutoRestartEnabled();
             
             if (status == ContainerStatus.RUNNING) {
                 try {
@@ -425,7 +401,7 @@ public class ProjectController {
             var technology = projectService.getProjectTechnology(id);
 
             return ResponseEntity.ok(ProjectDetailResponse.fromProject(
-                project, status, cpuUsage, memoryUsage, serverUrl, technology));
+                project, status, cpuUsage, memoryUsage, serverUrl, technology, autoRestartEnabled));
         } catch (Exception e) {
             if (e instanceof AccessDeniedException) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -435,6 +411,47 @@ public class ProjectController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to get project details", 
                                  "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+    @Operation(
+            summary = "Configure auto-restart for a project",
+            description = "Enable or disable automatic restart for the specified project"
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Auto-restart configuration updated successfully"
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - User doesn't own this project"
+    )
+    @SecurityRequirement(name = "bearer-key")
+    @PostMapping("/{id}/auto-restart")
+    public ResponseEntity<?> configureAutoRestart(
+            @PathVariable String id,
+            @RequestBody AutoRestartRequest request) {
+        try {
+            var project = projectService.getProjectById(id);
+            checkProjectOwnership(project);
+
+            dockerService.configureAutoRestart(id, request.isEnabled());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Auto-restart " + (request.isEnabled() ? "enabled" : "disabled"),
+                    "projectId", id,
+                    "autoRestartEnabled", request.isEnabled()
+            ));
+        } catch (Exception e) {
+            return e instanceof AccessDeniedException
+                    ? ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+                    : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to configure auto-restart",
+                            "details", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
 }
