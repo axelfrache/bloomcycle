@@ -9,7 +9,7 @@ import { Project } from '../models/project.model';
 export class ProjectService {
   constructor(private apiService: ApiService) {}
 
-  getAllProjects(): Observable<Project[]> {
+  getProjects(): Observable<Project[]> {
     return this.apiService.get<Project[]>('projects');
   }
 
