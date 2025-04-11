@@ -54,10 +54,8 @@ export class UploadComponent {
     this.isUploading = true;
     this.error = null;
 
-    // Simuler un chargement (à remplacer par un appel réel au service)
     setTimeout(() => {
       this.isUploading = false;
-      // Vérifier que selectedFile n'est pas null avant d'accéder à la propriété name
       if (this.selectedFile) {
         console.log('File uploaded:', this.selectedFile.name);
       }

@@ -2,12 +2,12 @@ import { Component } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
-import { CommonModule } from '@angular/common'; // Ajout de CommonModule
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [RouterLink, FormsModule, CommonModule], // Ajout de CommonModule aux imports
+  imports: [RouterLink, FormsModule, CommonModule],
   template: `
     <div class="max-w-sm mx-auto p-6 text-center" style="margin: 0 auto; padding: 20px;">
       <img src="assets/logo.png" alt="BloomCycle" class="h-24" style="margin: 0 auto;">
