@@ -26,6 +26,9 @@ import fr.umontpellier.bloomcycle.model.Project;
 public class DockerService {
     
     private static final Logger log = LoggerFactory.getLogger(DockerService.class);
+    
+    private static final String DOCKER_NETWORK = "bloom-cycle_bloomcycle-network";
+    private static final String FALLBACK_NETWORK = "bloomcycle-network";
 
     @Value("${app.storage.path}")
     private String storagePath;
@@ -129,7 +132,46 @@ public class DockerService {
         }
     }
 
+    private void ensureNetworkExists() {
+        try {
+            var checkCommand = new String[]{
+                "docker", "network", "inspect", DOCKER_NETWORK
+            };
+            var checkBuilder = new ProcessBuilder(checkCommand).redirectErrorStream(true);
+            
+            try {
+                executeDockerCommand(checkBuilder);
+                System.out.println("Le réseau " + DOCKER_NETWORK + " existe déjà");
+                return;
+            } catch (Exception e) {
+                var checkFallbackCommand = new String[]{
+                    "docker", "network", "inspect", FALLBACK_NETWORK
+                };
+                var checkFallbackBuilder = new ProcessBuilder(checkFallbackCommand).redirectErrorStream(true);
+                
+                try {
+                    executeDockerCommand(checkFallbackBuilder);
+                    System.out.println("Le réseau de secours " + FALLBACK_NETWORK + " existe déjà");
+                    return;
+                } catch (Exception e2) {
+                    System.out.println("Création du réseau Docker " + DOCKER_NETWORK);
+                    var createCommand = new String[]{
+                        "docker", "network", "create", DOCKER_NETWORK
+                    };
+                    var createBuilder = new ProcessBuilder(createCommand).redirectErrorStream(true);
+                    executeDockerCommand(createBuilder);
+                    System.out.println("Réseau Docker " + DOCKER_NETWORK + " créé avec succès");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la vérification/création du réseau Docker: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     private String startContainer(Project project) throws IOException, InterruptedException {
+        ensureNetworkExists();
+        
         String subdomain = "project-" + project.getId();
         String containerName = getContainerName(project);
         
@@ -137,9 +179,9 @@ public class DockerService {
         
         var runCommand = new String[]{
             "docker", "run", "-d",
-            "-p", "0:3000", // Utiliser un port aléatoire pour le mapping (pour la compatibilité)
+            "-p", "0:3000",
             "--name", containerName,
-            "--network", "bloom-cycle_bloomcycle-network", // Connecter au réseau de Traefik
+            "--network", DOCKER_NETWORK, // Connecter au réseau de Traefik
             "--label", "traefik.enable=true",
             "--label", "traefik.http.routers." + subdomain + ".rule=Host(`" + subdomain + ".bloomcycle.localhost`)",
             "--label", "traefik.http.routers." + subdomain + ".entrypoints=web",
@@ -160,7 +202,7 @@ public class DockerService {
             
             try {
                 var connectCommand = new String[]{
-                    "docker", "network", "connect", "bloom-cycle_bloomcycle-network", containerName
+                    "docker", "network", "connect", DOCKER_NETWORK, containerName
                 };
                 var connectBuilder = new ProcessBuilder(connectCommand).redirectErrorStream(true);
                 executeDockerCommand(connectBuilder);
