@@ -1,4 +1,35 @@
 services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=DEBUG"
+      # Configuration simplifiée pour résoudre les problèmes de sous-domaines
+      - "--providers.docker.network=bloom-cycle_bloomcycle-network"
+      - "--providers.docker.defaultRule=Host(`{{ normalize .Name }}.bloomcycle.localhost`)"
+      # Désactiver la redirection HTTPS pour le développement local
+      # - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      # - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # - "--entrypoints.websecure.http.tls=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - bloomcycle-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.bloomcycle.localhost`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+
   frontend:
     build: ./bloomcycle-frontend
     container_name: bloomcycle-frontend
@@ -14,6 +45,11 @@ services:
     networks:
       - bloomcycle-network
     command: ["npm", "run", "start"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`bloomcycle.localhost`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=4200"
 
   backend:
     build: ./bloomcycle-backend
@@ -35,6 +71,11 @@ services:
     networks:
       - bloomcycle-network
     restart: on-failure
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.bloomcycle.localhost`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=9090"
 
   mysql:
     image: mysql:8.0
