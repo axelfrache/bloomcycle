@@ -15,11 +15,11 @@ export class ApiService {
     const headers: { [key: string]: string } = {
       'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
     };
-    
+
     if (!isMultipart) {
       headers['Content-Type'] = 'application/json';
     }
-    
+
     return new HttpHeaders(headers);
   }
 

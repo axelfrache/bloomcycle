@@ -17,7 +17,7 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secretKey;
     
-    private static final long EXPIRATION_TIME = 86400000;
+    private static final long EXPIRATION_TIME = 7200000;http://localhost:9090
 
     public String generateToken(User user) {
         return Jwts.builder()
