@@ -12,6 +12,9 @@ export const AuthInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const token = authService.getToken();
 
+  // Log la requête dans la console
+  console.log('HTTP Request:', req);
+
   if (token) {
     req = req.clone({
       setHeaders: {
@@ -21,4 +24,4 @@ export const AuthInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   return next(req);
-}; 
+};

@@ -21,8 +21,8 @@ export class ProjectService {
     return this.apiService.get<Project>(`projects/${id}/details`);
   }
 
-  createProject(project: Partial<Project>): Observable<Project> {
-    return this.apiService.post<Project>('projects', project);
+  createProject(project: FormData): Observable<Project> {
+    return this.apiService.post<Project>(`projects`, project);
   }
 
   deleteProject(id: string): Observable<void> {

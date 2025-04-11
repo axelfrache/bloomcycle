@@ -1,31 +1,135 @@
 import { Component } from '@angular/core';
+import { ProjectService } from '../../core/services/project.service';
+import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-upload',
   standalone: true,
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="max-w-3xl" style="margin: 0 auto; padding: 40px 20px;">
       <h1 class=" text-2xl font-semibold" style="margin-bottom: 40px;">Upload new application</h1>
-
       <div class="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center gap-5" style="padding: 40px;">
         <i class="ph ph-cloud-arrow-up text-8xl"></i>
-<!--        <button class="bg-white border border-gray-300 rounded-md" style="padding: 8px 16px;">-->
-<!--          Choose file-->
-<!--          <span class="text-gray-600" style="margin-left: 4px;">.zip</span>-->
-<!--        </button>-->
-        <input type="file" class="file-input" />
+
+        <div class="w-full">
+          <p class="text-gray-600 mb-2">Project name: <span class="text-red-500">*</span></p>
+          <input
+            type="text"
+            [(ngModel)]="projectName"
+            placeholder="My Project"
+            class="w-full p-2 border rounded-md"
+            required
+          >
+        </div>
+
+        <input type="file" class="file-input" (change)="onFileSelected($event)" accept=".zip" [disabled]="gitUrl">
         <div class="text-gray-600" style="margin: 10px 0;">OR</div>
-<!--        <div class="text-center">-->
-<!--          <p class="text-gray-600">Clone here the Git repository:</p>-->
-<!--          <div class="bg-gray-800 text-white rounded-md font-mono" style="padding: 12px 20px; margin-top: 10px;">-->
-<!--            git clone https://github.com/username/repository.git-->
-<!--          </div>-->
-<!--        </div>-->
-        <div class="mockup-code w-full rounded-xl" style="padding: 10px;">
-          <pre data-prefix="$"><code>git clone https://github.com/username/repository.git</code></pre>
+        <div class="w-full">
+          <p class="text-gray-600">Enter the Git repository URL:</p>
+          <input
+            type="text"
+            [(ngModel)]="gitUrl"
+            [disabled]="!!file"
+            placeholder="https://github.com/username/repository.git"
+            class="w-full p-2 border rounded-md mt-2"
+          >
+        </div>
+        <button
+          class="btn btn-neutral border"
+          [disabled]="!isValidSubmission()"
+          [ngClass]="{
+            'text-black': isValidSubmission(),
+            'text-gray-400': !isValidSubmission()
+          }"
+          (click)="submit()">
+          Valider l'upload
+        </button>
+
+        <div *ngIf="isLoading" class="flex justify-center items-center h-4">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+
+        <div *ngIf="error" class="text-red-500 mt-2">
+          {{ error }}
+        </div>
+
+        <div *ngIf="uploadSuccess" class="text-green-500 mt-2">
+          Upload completed successfully!
         </div>
       </div>
     </div>
-  `,
+  `
 })
-export class UploadComponent {}
+export class UploadComponent {
+  file: File | null = null;
+  error: string | null = null;
+  uploadSuccess = false;
+  projectName: string = '';
+  gitUrl: string = '';
+  isLoading = false;
+
+  constructor(private projectService: ProjectService, private router: Router) {}
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.file = input.files[0];
+    }
+  }
+
+  isValidSubmission(): boolean {
+    return ((!!this.file && !this.gitUrl) || (!this.file && !!this.gitUrl)) && !!this.projectName;
+  }
+
+  submit(): void {
+    if (this.file) {
+      this.uploadFile();
+    } else if (this.gitUrl) {
+      this.uploadGitUrl();
+    }
+  }
+
+  uploadFile(): void {
+    if (!this.file || !this.projectName) return;
+
+    this.isLoading = true;
+    const formData = new FormData();
+    formData.append('name', this.projectName);
+    formData.append('sourceZip', this.file);
+
+    this.projectService.createProject(formData).subscribe({
+      next: (project) => {
+        this.isLoading = false;
+        this.uploadSuccess = true;
+        setTimeout(() => this.router.navigate(['/home']), 1000);
+      },
+      error: (error: any) => {
+        this.isLoading = false;
+        this.error = error.error?.message || 'An error occurred during upload';
+      }
+    });
+  }
+
+  uploadGitUrl(): void {
+    if (!this.gitUrl) return;
+
+    this.isLoading = true;
+    const formData = new FormData();
+    formData.append('name', this.projectName);
+    formData.append('gitUrl', this.gitUrl);
+    this.projectService.createProject(formData).subscribe({
+      next: (project) => {
+        this.isLoading = false;
+        this.uploadSuccess = true;
+        setTimeout(() => this.router.navigate(['/home']), 1000);
+      },
+      error: (error: any) => {
+        this.isLoading = false;
+        this.error = error.error?.message || 'An error occurred while processing the Git repository';
+      }
+    });
+  }
+}

@@ -11,11 +11,16 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  private getHeaders(): HttpHeaders {
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
+  private getHeaders(isMultipart: boolean = false): HttpHeaders {
+    const headers: { [key: string]: string } = {
       'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-    });
+    };
+    
+    if (!isMultipart) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return new HttpHeaders(headers);
   }
 
   get<T>(endpoint: string): Observable<T> {
@@ -24,7 +29,8 @@ export class ApiService {
   }
 
   post<T>(endpoint: string, data: any): Observable<T> {
-    return this.http.post<T>(`${this.baseUrl}/${endpoint}`, data, { headers: this.getHeaders() })
+    const isMultipart = data instanceof FormData;
+    return this.http.post<T>(`${this.baseUrl}/${endpoint}`, data, { headers: this.getHeaders(isMultipart) })
       .pipe(catchError(this.handleError));
   }
 
