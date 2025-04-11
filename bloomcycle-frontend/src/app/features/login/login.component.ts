@@ -41,8 +41,6 @@ import { CommonModule } from '@angular/common';
 
         <div *ngIf="error" class="alert alert-error text-sm">{{error}}</div>
 
-        <a routerLink="/forgot-password" class="text-right text-gray-600 text-sm">Forgot Password?</a>
-
         <button type="submit" [disabled]="!loginForm.form.valid || isLoading" class="bg-[#6B7F94] text-white rounded-full text-xl w-full mt-5" style="padding: 12px; background-color: #6B7F94; margin: 20px 0; border-radius: 25px;">
           <span *ngIf="isLoading" class="loading loading-spinner loading-sm mr-2"></span>
           {{isLoading ? 'Loading...' : 'Login'}}
