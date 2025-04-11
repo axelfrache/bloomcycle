@@ -6,13 +6,12 @@ import { HomeModule } from './features/home/home.module';
 import { routes } from './app.routes';
 
 @NgModule({
-  declarations: [AppComponent],
   imports: [
     BrowserModule,
     HomeModule,
-    RouterModule.forRoot(routes)
-  ],
-  bootstrap: [AppComponent]
+    RouterModule.forRoot(routes),
+    AppComponent
+  ]
 })
 export class AppModule {}
 

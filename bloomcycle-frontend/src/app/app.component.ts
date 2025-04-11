@@ -38,8 +38,7 @@ import { Observable } from 'rxjs';
     <main class="min-h-screen bg-white p-10" style="padding: 40px;">
       <router-outlet></router-outlet>
     </main>
-  `,
-  styleUrl: './app.component.css'
+  `
 })
 export class AppComponent {
   title = 'bloomcycle';
