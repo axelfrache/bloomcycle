@@ -101,7 +101,7 @@ export class HomeComponent {
     this.isLoading = true;
     this.error = null;
 
-    this.projectService.getAllProjects().subscribe({
+    this.projectService.getProjects().subscribe({
       next: (projects) => {
         this.applications = projects.map(project => ({
           id: project.id,
