@@ -51,7 +51,6 @@ export class AppComponent {
   title = 'bloomcycle';
   hasToken$: Observable<boolean>;
   isMobileMenuOpen = false;
-  currentYear = new Date().getFullYear();
 
   constructor(private router: Router, private authService: AuthService) {
     this.hasToken$ = this.authService.isAuthenticated();
@@ -67,8 +66,7 @@ export class AppComponent {
     this.isMobileMenuOpen = !this.isMobileMenuOpen;
   }
 
-  // Méthode pour vérifier si la route est active
   isActive(route: string): boolean {
-    return this.router.isActive(route, true);  // 'true' inclut les sous-routes
+    return this.router.isActive(route, true);
   }
 }
