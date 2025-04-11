@@ -439,15 +439,50 @@ public class ProjectController {
         }
     }
 
+    @Operation(
+        summary = "Get project logs",
+        description = "Get the logs from the project's container. The container must be running."
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Logs retrieved successfully",
+        content = @Content(schema = @Schema(implementation = LogsResponse.class))
+    )
+    @ApiResponse(
+        responseCode = "400",
+        description = "Container is not running"
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - JWT token is missing or invalid"
+    )
+    @ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this project"
+    )
+    @ApiResponse(
+        responseCode = "404",
+        description = "Project not found"
+    )
+    @ApiResponse(
+        responseCode = "500",
+        description = "Error retrieving project logs"
+    )
     @SecurityRequirement(name = "bearer-key")
     @GetMapping("/{id}/logs")
-    public ResponseEntity<LogsResponse> getProjectLogs(@PathVariable String id) {
+    public ResponseEntity<Object> getProjectLogs(@PathVariable String id) {
         try {
             var project = projectService.getProjectById(id);
             checkProjectOwnership(project);
 
-            var logs = dockerService.getProjectLogs(project);
+            // Vérifier si le conteneur est en cours d'exécution
+            var status = dockerService.getProjectStatus(id);
+            if (status != ContainerStatus.RUNNING) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Container is not running"));
+            }
 
+            var logs = dockerService.getProjectLogs(project);
             return ResponseEntity.ok(LogsResponse.fromLogs(project, logs));
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
