@@ -76,6 +76,7 @@ import { CommonModule } from '@angular/common';
         </div>
 
         <div *ngIf="error" class="alert alert-error text-sm">{{error}}</div>
+        <div *ngIf="success" class="alert alert-success text-sm">{{success}}</div>
 
         <button
           type="submit"
@@ -102,6 +103,7 @@ export class RegisterComponent {
   confirmPassword = '';
   isLoading = false;
   error: string | null = null;
+  success: string | null = null;
 
   constructor(
     private authService: AuthService,
@@ -121,10 +123,16 @@ export class RegisterComponent {
     this.authService.register(this.registerData)
       .subscribe({
         next: () => {
-          this.router.navigate(['/login']);
+          this.success = 'Registration successful! Redirecting to login...';
+          this.error = null;
+          // Attendre 1 seconde avant la redirection
+          setTimeout(() => {
+            this.router.navigate(['/login']);
+          }, 1000);
         },
         error: (err) => {
           this.error = err.error?.message || 'An error occurred during registration';
+          this.success = null;
           this.isLoading = false;
         }
       });
