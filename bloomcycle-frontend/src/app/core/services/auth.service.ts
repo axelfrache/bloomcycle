@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
+import { JwtHelperService } from '@auth0/angular-jwt';
 
 interface LoginResponse {
   token: string;
@@ -22,12 +23,17 @@ interface RegisterData {
 export class AuthService {
   private apiUrl = 'https://api-bloomcycle.axelfrache.me/api/v1';
   private tokenKey = 'auth_token';
-  private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
+  private jwtHelper = new JwtHelperService();
+  private tokenCheckInterval: any;
 
   constructor(
     private http: HttpClient,
     private router: Router
-  ) {}
+  ) {
+    this.validateAndSetAuthState();
+    this.tokenCheckInterval = setInterval(() => this.validateAndSetAuthState(), 600000);
+  }
 
   login(email: string, password: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, {
@@ -51,15 +57,35 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-  private hasToken(): boolean {
-    return !!localStorage.getItem(this.tokenKey);
-  }
-
   isAuthenticated(): Observable<boolean> {
+    this.validateAndSetAuthState();
     return this.isAuthenticatedSubject.asObservable();
   }
 
   getToken(): string | null {
     return localStorage.getItem(this.tokenKey);
+  }
+
+  private validateAndSetAuthState(): void {
+    try {
+      const token = this.getToken();
+
+      if (!token) {
+        this.isAuthenticatedSubject.next(false);
+        return;
+      }
+
+      const isExpired = this.jwtHelper.isTokenExpired(token);
+
+      if (isExpired) {
+        this.logout();
+        return;
+      }
+
+      this.isAuthenticatedSubject.next(true);
+    } catch (error) {
+      this.isAuthenticatedSubject.next(false);
+      this.logout();
+    }
   }
 }
