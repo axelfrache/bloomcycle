@@ -60,7 +60,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/bloomcycle
       SPRING_DATASOURCE_USERNAME: bloomuser
       SPRING_DATASOURCE_PASSWORD: bloompassword
-      BLOOMCYCLE_HOST: localhost
+      BLOOMCYCLE_HOST: bloomcycle.axelfrache.me
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     volumes:
