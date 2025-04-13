@@ -1,4 +1,4 @@
 services:
   backend:
     environment:
-      BLOOMCYCLE_HOST: bloomcycle.microsoftgroups.org
+      BLOOMCYCLE_HOST: bloomcycle.axelfrache.me

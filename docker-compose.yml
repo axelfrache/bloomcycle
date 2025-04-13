@@ -11,15 +11,15 @@ services:
       - "--log.level=DEBUG"
       # Configuration simplifiée pour résoudre les problèmes de sous-domaines
       - "--providers.docker.network=bloom-cycle_bloomcycle-network"
-      - "--providers.docker.defaultRule=Host(`{{ normalize .Name }}.bloomcycle.localhost`)"
-      # Désactiver la redirection HTTPS pour le développement local
-      # - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      # - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
-      # - "--entrypoints.websecure.http.tls=true"
+      - "--providers.docker.defaultRule=Host(`{{ normalize .Name }}.bloomcycle.axelfrache.me`)"
+      # Configuration pour la production avec TLS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.websecure.http.tls=true"
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
+      - "8081:8080"  # Utiliser le port 8081 au lieu de 8080 pour éviter les conflits
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -60,7 +60,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/bloomcycle
       SPRING_DATASOURCE_USERNAME: bloomuser
       SPRING_DATASOURCE_PASSWORD: bloompassword
-      BLOOMCYCLE_HOST: localhost
+      BLOOMCYCLE_HOST: bloomcycle.axelfrache.me
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     volumes:
