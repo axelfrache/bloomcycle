@@ -9,56 +9,91 @@ import { FormsModule } from '@angular/forms';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="max-w-3xl" style="margin: 0 auto; padding: 40px 20px;">
-      <h1 class=" text-2xl font-semibold" style="margin-bottom: 40px;">Upload new application</h1>
-      <div class="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center gap-5" style="padding: 40px;">
-        <i class="ph ph-cloud-arrow-up text-8xl"></i>
+    <div class="flex flex-col items-center py-10 px-6 min-h-[80vh]">
+      <h1 class="text-3xl font-bold text-gray-800 mb-8">Upload new application</h1>
 
-        <div class="w-full">
-          <p class="text-gray-600 mb-2">Project name: <span class="text-red-500">*</span></p>
-          <input
-            type="text"
-            [(ngModel)]="projectName"
-            placeholder="My Project"
-            class="w-full p-2 border rounded-md"
-            required
-          >
+      <div class="flex justify-center mb-8">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20 text-[#6B7F94]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+      </div>
+
+      <div class="w-full max-w-2xl bg-white rounded-lg shadow-md border border-gray-200 mb-8">
+        <div class="p-8">
+          <div class="mb-8">
+            <label class="block text-lg text-gray-700 font-semibold mb-3">
+              Project name: <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              [(ngModel)]="projectName"
+              placeholder="My Project"
+              class="input input-bordered w-full bg-white text-black focus:border-[#6B7F94] focus:ring-1 focus:ring-[#6B7F94]"
+              required
+            >
+          </div>
+
+          <div class="mb-8">
+            <label class="block text-lg text-gray-700 font-semibold mb-3">Upload project file:</label>
+            <div class="flex items-center">
+              <label class="btn border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm">
+                Choisir un fichier
+                <input
+                  type="file"
+                  class="hidden"
+                  (change)="onFileSelected($event)"
+                  accept=".zip"
+                  [disabled]="gitUrl"
+                />
+              </label>
+              <span class="ml-4 text-gray-500 truncate flex-1">{{ file ? file.name : 'Aucun fichier choisi' }}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center py-4 my-8">
+            <div class="flex-grow h-px bg-gray-200"></div>
+            <div class="px-8 text-lg text-gray-500 font-medium">OR</div>
+            <div class="flex-grow h-px bg-gray-200"></div>
+          </div>
+
+          <div class="mb-8">
+            <label class="block text-lg text-gray-700 font-semibold mb-3">Enter the Git repository URL:</label>
+            <input
+              type="text"
+              [(ngModel)]="gitUrl"
+              [disabled]="!!file"
+              placeholder="https://github.com/username/repository.git"
+              class="input input-bordered w-full bg-white text-black focus:border-[#6B7F94] focus:ring-1 focus:ring-[#6B7F94]"
+            >
+          </div>
         </div>
 
-        <input type="file" class="file-input" (change)="onFileSelected($event)" accept=".zip" [disabled]="gitUrl">
-        <div class="text-gray-600" style="margin: 10px 0;">OR</div>
-        <div class="w-full">
-          <p class="text-gray-600">Enter the Git repository URL:</p>
-          <input
-            type="text"
-            [(ngModel)]="gitUrl"
-            [disabled]="!!file"
-            placeholder="https://github.com/username/repository.git"
-            class="w-full p-2 border rounded-md mt-2"
-          >
+        <div class="flex justify-center py-6 border-t border-gray-200">
+          <button
+            class="btn border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+            [disabled]="!isValidSubmission()"
+            [ngClass]="{
+              'opacity-100': isValidSubmission(),
+              'opacity-50 cursor-not-allowed hover:bg-white': !isValidSubmission()
+            }"
+            (click)="submit()">
+            Valider l'upload
+          </button>
         </div>
-        <button
-          class="btn btn-neutral border"
-          [disabled]="!isValidSubmission()"
-          [ngClass]="{
-            'text-black': isValidSubmission(),
-            'text-gray-400': !isValidSubmission()
-          }"
-          (click)="submit()">
-          Valider l'upload
-        </button>
+      </div>
 
-        <div *ngIf="isLoading" class="flex justify-center items-center h-4">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
-        </div>
+      <div *ngIf="isLoading" class="flex justify-center items-center h-12 mt-6">
+        <span class="loading loading-spinner loading-lg text-[#6B7F94]"></span>
+      </div>
 
-        <div *ngIf="error" class="text-red-500 mt-2">
-          {{ error }}
-        </div>
+      <div *ngIf="error" class="mt-6 p-4 bg-red-50 text-red-600 text-center rounded-md max-w-2xl w-full border border-red-100">
+        {{ error }}
+      </div>
 
-        <div *ngIf="uploadSuccess" class="text-green-500 mt-2">
-          Upload completed successfully!
-        </div>
+      <div *ngIf="uploadSuccess" class="mt-6 p-4 bg-green-50 text-green-600 text-center rounded-md max-w-2xl w-full border border-green-100">
+        Upload completed successfully!
       </div>
     </div>
   `
