@@ -30,7 +30,7 @@ import { FormsModule } from '@angular/forms';
               type="text"
               [(ngModel)]="projectName"
               placeholder="My Project"
-              class="input input-bordered w-full bg-white text-black focus:border-[#6B7F94] focus:ring-1 focus:ring-[#6B7F94]"
+              class="bloom-input w-full"
               required
             >
           </div>
@@ -38,8 +38,9 @@ import { FormsModule } from '@angular/forms';
           <div class="mb-8">
             <label class="block text-lg text-gray-700 font-semibold mb-3">Upload project file:</label>
             <div class="flex items-center">
-              <label class="btn border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm">
-                Choisir un fichier
+              <label class="bloom-button">
+                <i class="ph ph-file"></i>
+                <span>Choisir un fichier</span>
                 <input
                   type="file"
                   class="hidden"
@@ -65,21 +66,22 @@ import { FormsModule } from '@angular/forms';
               [(ngModel)]="gitUrl"
               [disabled]="!!file"
               placeholder="https://github.com/username/repository.git"
-              class="input input-bordered w-full bg-white text-black focus:border-[#6B7F94] focus:ring-1 focus:ring-[#6B7F94]"
+              class="bloom-input w-full"
             >
           </div>
         </div>
 
         <div class="flex justify-center py-6 border-t border-gray-200">
           <button
-            class="btn border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+            class="bloom-button"
             [disabled]="!isValidSubmission()"
             [ngClass]="{
               'opacity-100': isValidSubmission(),
-              'opacity-50 cursor-not-allowed hover:bg-white': !isValidSubmission()
+              'opacity-50 cursor-not-allowed': !isValidSubmission()
             }"
             (click)="submit()">
-            Valider l'upload
+            <i class="ph ph-check"></i>
+            <span>Valider l'upload</span>
           </button>
         </div>
       </div>
