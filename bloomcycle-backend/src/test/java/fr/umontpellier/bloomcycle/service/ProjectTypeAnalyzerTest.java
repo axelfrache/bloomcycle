@@ -27,12 +27,12 @@ class ProjectTypeAnalyzerTest {
         // Créer un projet Maven
         Files.write(tempDir.resolve("pom.xml"),
             """
-            &lt;project&gt;
-                &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
-                &lt;groupId&gt;com.example&lt;/groupId&gt;
-                &lt;artifactId&gt;test-project&lt;/artifactId&gt;
-                &lt;version&gt;1.0.0&lt;/version&gt;
-            &lt;/project&gt;
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>test-project</artifactId>
+                <version>1.0.0</version>
+            </project>
             """.getBytes()
         );
 
@@ -100,12 +100,12 @@ class ProjectTypeAnalyzerTest {
         // Créer un projet avec plusieurs marqueurs technologiques
         Files.write(tempDir.resolve("pom.xml"),
             """
-            &lt;project&gt;
-                &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
-                &lt;groupId&gt;com.example&lt;/groupId&gt;
-                &lt;artifactId&gt;test-project&lt;/artifactId&gt;
-                &lt;version&gt;1.0.0&lt;/version&gt;
-            &lt;/project&gt;
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>test-project</artifactId>
+                <version>1.0.0</version>
+            </project>
             """.getBytes()
         );
         Files.write(tempDir.resolve("package.json"),
