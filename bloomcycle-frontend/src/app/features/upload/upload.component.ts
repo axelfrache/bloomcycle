@@ -56,8 +56,8 @@ import { FormsModule } from '@angular/forms';
           {{ error }}
         </div>
 
-        <div *ngIf="uploadSuccess" class="text-green-500 mt-2">
-          Upload completed successfully!
+        <div *ngIf="success" class="text-green-500 mt-2">
+          {{ success }}
         </div>
       </div>
     </div>
@@ -66,7 +66,7 @@ import { FormsModule } from '@angular/forms';
 export class UploadComponent {
   file: File | null = null;
   error: string | null = null;
-  uploadSuccess = false;
+  success: string | null = null;
   projectName: string = '';
   gitUrl: string = '';
   isLoading = false;
@@ -103,7 +103,7 @@ export class UploadComponent {
     this.projectService.createProject(formData).subscribe({
       next: (project) => {
         this.isLoading = false;
-        this.uploadSuccess = true;
+        this.success = 'Upload completed successfully!';
         setTimeout(() => this.router.navigate(['/home']), 1000);
       },
       error: (error: any) => {
@@ -123,7 +123,7 @@ export class UploadComponent {
     this.projectService.createProject(formData).subscribe({
       next: (project) => {
         this.isLoading = false;
-        this.uploadSuccess = true;
+        this.success = 'Upload completed successfully!';
         setTimeout(() => this.router.navigate(['/home']), 1000);
       },
       error: (error: any) => {
