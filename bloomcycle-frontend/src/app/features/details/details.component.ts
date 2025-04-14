@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { catchError, finalize, tap } from 'rxjs/operators';
-import { Observable, of } from 'rxjs';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-details',
@@ -97,6 +97,18 @@ import { Observable, of } from 'rxjs';
               </div>
             </div>
 
+            <div *ngIf="serverUrl" class="card bg-base-500 shadow-sm mb-8 w-full max-w-4xl">
+              <div class="card-body">
+                <h2 class="card-title">Server URL</h2>
+                <div class="flex items-center justify-between">
+                  <a [href]="serverUrl" target="_blank" class="link link-primary break-all">{{ serverUrl }}</a>
+                  <button class="btn btn-sm btn-outline" (click)="copyToClipboard(serverUrl)">
+                    <i class="ph ph-copy"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div class="card bg-base-500 shadow-sm mb-8 w-full max-w-4xl">
               <div class="card-body">
                 <h2 class="card-title">Logs</h2>
@@ -115,6 +127,7 @@ export class DetailsComponent implements OnInit {
   isLoading = false;
   error: string | null = null;
   projectId: string | null = null;
+  serverUrl: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -137,7 +150,10 @@ export class DetailsComponent implements OnInit {
     this.error = null;
 
     this.projectService.getProjectDetails(id).pipe(
-      tap(project => this.project = project),
+      tap(project => {
+        this.project = project;
+        this.serverUrl = project?.serverUrl || null;
+      }),
       catchError(err => {
         this.error = err.message || `Failed to load project details for ${id}`;
         return of(null);
@@ -163,7 +179,10 @@ export class DetailsComponent implements OnInit {
         if (this.projectId) this.loadProjectDetails(this.projectId);
         return of(null);
       }),
-      finalize(() => this.isLoading = false)
+      finalize(() => {
+        this.isLoading = false;
+        if (this.projectId) this.loadProjectDetails(this.projectId);
+      })
     ).subscribe();
   }
 
@@ -207,5 +226,16 @@ export class DetailsComponent implements OnInit {
       }),
       finalize(() => this.isLoading = false)
     ).subscribe();
+  }
+
+  copyToClipboard(text: string | null): void {
+    if (!text) return;
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        console.log('URL copiée dans le presse-papiers');
+      })
+      .catch(err => {
+        console.error('Erreur lors de la copie :', err);
+      });
   }
 }

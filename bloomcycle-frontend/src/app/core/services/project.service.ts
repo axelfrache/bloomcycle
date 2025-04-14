@@ -29,8 +29,8 @@ export class ProjectService {
     return this.apiService.delete<void>(`projects/${id}`);
   }
 
-  startProject(id: string): Observable<void> {
-    return this.apiService.post<void>(`projects/${id}/start`, {});
+  startProject(id: string): Observable<{serverUrl: string}> {
+    return this.apiService.post<{serverUrl: string}>(`projects/${id}/start`, {});
   }
 
   restartProject(id: string): Observable<void> {
