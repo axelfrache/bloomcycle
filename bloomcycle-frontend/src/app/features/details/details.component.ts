@@ -31,6 +31,14 @@ import { of } from 'rxjs';
               <h1 class="text-2xl font-semibold">{{ project.name }}</h1>
               <div class="flex gap-3">
                 <ng-container *ngIf="project.containerStatus === 'RUNNING'">
+                  <button (click)="toggleAutoRestart()" class="btn btn-sm gap-2"
+                          [class.btn-info]="project.autoRestartEnabled"
+                          [class.btn-outline-primary]="!project.autoRestartEnabled">
+                    <i class="ph ph-arrows-clockwise"></i>
+                    <span [class.text-info]="!project.autoRestartEnabled">
+                      {{ project.autoRestartEnabled ? 'Désactiver auto-restart' : 'Activer auto-restart' }}
+                    </span>
+                  </button>
                   <button (click)="restartProject()" class="btn btn-success btn-sm gap-2">
                     <i class="ph ph-arrow-clockwise"></i>
                     Restart
@@ -225,6 +233,33 @@ export class DetailsComponent implements OnInit {
         return of(null);
       }),
       finalize(() => this.isLoading = false)
+    ).subscribe();
+  }
+
+  toggleAutoRestart(): void {
+    if (!this.projectId) return;
+
+    this.isLoading = true;
+    this.error = null;
+
+    // Inverser l'état actuel
+    const newState = !this.project.autoRestartEnabled;
+
+    this.projectService.autoRestartProject(this.projectId, newState).pipe(
+      tap((response) => {
+        if (this.project) {
+          this.project.autoRestartEnabled = response.autoRestartEnabled;
+        }
+      }),
+      catchError(err => {
+        this.error = err.message || 'Échec de configuration auto-restart';
+        if (this.projectId) this.loadProjectDetails(this.projectId);
+        return of(null);
+      }),
+      finalize(() => {
+        this.isLoading = false;
+        if (this.projectId) this.loadProjectDetails(this.projectId);
+      })
     ).subscribe();
   }
 

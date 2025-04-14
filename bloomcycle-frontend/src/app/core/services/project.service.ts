@@ -40,4 +40,10 @@ export class ProjectService {
   stopProject(id: string): Observable<void> {
     return this.apiService.post<void>(`projects/${id}/stop`, {});
   }
+
+  autoRestartProject(id: string, enabled: boolean): Observable<any> {
+    return this.apiService.post<any>(`projects/${id}/auto-restart`, {
+      enabled: enabled
+    });
+  }
 }
