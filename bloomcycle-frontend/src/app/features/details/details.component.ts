@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule} from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { catchError, finalize, tap } from 'rxjs/operators';
@@ -8,7 +8,7 @@ import { of } from 'rxjs';
 @Component({
   selector: 'app-details',
   standalone: true,
-  imports: [CommonModule, RouterModule, DatePipe],
+  imports: [CommonModule, RouterModule],
   template: `
     <div class="flex flex-col items-center w-full bg-base-500">
       <div class="w-full max-w-screen-xl mx-auto p-6">
@@ -79,10 +79,6 @@ import { of } from 'rxjs';
                     'text-warning': project.containerStatus === 'STOPPED',
                     'text-error': project.containerStatus === 'CRASHED'
                   }">{{ project.containerStatus }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Created:</span>
-                      <span>{{ project.createdAt | date:'medium' }}</span>
                     </div>
                   </div>
                 </div>
