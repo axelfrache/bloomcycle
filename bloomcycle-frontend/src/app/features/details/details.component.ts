@@ -142,7 +142,6 @@ export class DetailsComponent implements OnInit {
     this.projectService.getProjectDetails(id).pipe(
       tap(project => {
         this.project = project;
-        // Si le conteneur est en cours d'exécution, charger les logs
         if (project.containerStatus === 'RUNNING') {
           this.loadProjectLogs(id);
         }
@@ -159,7 +158,6 @@ export class DetailsComponent implements OnInit {
     this.projectService.getProjectLogs(id).pipe(
       tap((response: Project | null) => {
         if (this.project) {
-          // Extraire les logs de l'objet LogsResponse
           this.project.logs = response?.logs || 'No logs available';
         }
       }),
@@ -180,7 +178,6 @@ export class DetailsComponent implements OnInit {
       tap(() => {
         if (this.project) {
           this.project.containerStatus = 'RUNNING';
-          // Charger les logs après le démarrage
           setTimeout(() => this.loadProjectLogs(this.projectId!), 2000);
         }
       }),
@@ -224,7 +221,6 @@ export class DetailsComponent implements OnInit {
       tap(() => {
         if (this.project) {
           this.project.containerStatus = 'RUNNING';
-          // Charger les logs après le redémarrage
           setTimeout(() => this.loadProjectLogs(this.projectId!), 2000);
         }
       }),
