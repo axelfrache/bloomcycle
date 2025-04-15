@@ -38,8 +38,10 @@ import { FormsModule } from '@angular/forms';
           <div class="mb-8">
             <label class="block text-lg text-gray-700 font-semibold mb-3">Upload project file:</label>
             <div class="flex items-center">
-              <label class="bloom-button">
-                <i class="ph ph-file"></i>
+              <label class="bloom-button bg-slate-600 hover:bg-slate-700" [ngClass]="{'opacity-50 cursor-not-allowed': gitUrl}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                </svg>
                 <span>Choisir un fichier</span>
                 <input
                   type="file"
@@ -73,14 +75,16 @@ import { FormsModule } from '@angular/forms';
 
         <div class="flex justify-center py-6 border-t border-gray-200">
           <button
-            class="bloom-button"
+            class="bloom-button bg-emerald-600"
             [disabled]="!isValidSubmission()"
             [ngClass]="{
-              'opacity-100': isValidSubmission(),
+              'hover:bg-emerald-700': isValidSubmission(),
               'opacity-50 cursor-not-allowed': !isValidSubmission()
             }"
             (click)="submit()">
-            <i class="ph ph-check"></i>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <span>Valider l'upload</span>
           </button>
         </div>
