@@ -32,33 +32,45 @@ import {Project} from '../../core/models/project.model';
               <h1 class="text-2xl font-semibold">{{ project.name }}</h1>
               <div class="flex gap-3">
                 <ng-container *ngIf="project.containerStatus === 'RUNNING'">
-                  <button (click)="toggleAutoRestart()" class="btn btn-sm gap-2"
-                          [class.btn-info]="project.autoRestartEnabled"
-                          [class.btn-outline-primary]="!project.autoRestartEnabled">
-                    <i class="ph ph-arrows-clockwise"></i>
-                    <span [class.text-info]="!project.autoRestartEnabled">
-                      {{ project.autoRestartEnabled ? 'Désactiver auto-restart' : 'Activer auto-restart' }}
-                    </span>
+                  <button (click)="toggleAutoRestart()"
+                          class="bloom-button"
+                          [ngClass]="project.autoRestartEnabled ? 'bg-info hover:bg-info-dark' : 'bg-indigo-600 hover:bg-indigo-700'">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    {{ project.autoRestartEnabled ? 'DISABLE AUTO-RESTART' : 'ENABLE AUTO-RESTART' }}
                   </button>
-                  <button (click)="restartProject()" class="btn btn-success btn-sm gap-2">
-                    <i class="ph ph-arrow-clockwise"></i>
-                    Restart
+                  <button (click)="restartProject()"
+                          class="bloom-button bg-sky-600 hover:bg-sky-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    RESTART
                   </button>
-                  <button (click)="stopProject()" class="btn btn-error btn-sm gap-2">
-                    <i class="ph ph-stop-circle"></i>
-                    Stop
+                  <button (click)="stopProject()"
+                          class="bloom-button bg-amber-600 hover:bg-amber-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z" />
+                    </svg>
+                    STOP
                   </button>
                 </ng-container>
                 <ng-container *ngIf="project.containerStatus === 'STOPPED'">
-                  <button (click)="startProject()" class="btn btn-success btn-sm gap-2">
-                    <i class="ph-fill ph-play"></i>
-                    Start
+                  <button (click)="startProject()"
+                          class="bloom-button bg-emerald-600 hover:bg-emerald-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                    </svg>
+                    START
                   </button>
                 </ng-container>
                 <ng-container *ngIf="project.containerStatus === 'CRASHED'">
-                  <button (click)="restartProject()" class="btn btn-success btn-sm gap-2">
-                    <i class="ph ph-arrow-clockwise"></i>
-                    Restart
+                  <button (click)="restartProject()"
+                          class="bloom-button bg-sky-600 hover:bg-sky-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    RESTART
                   </button>
                 </ng-container>
               </div>
@@ -107,8 +119,12 @@ import {Project} from '../../core/models/project.model';
                 <h2 class="card-title">Server URL</h2>
                 <div class="flex items-center justify-between">
                   <a [href]="serverUrl" target="_blank" class="link link-primary break-all">{{ serverUrl }}</a>
-                  <button class="btn btn-sm btn-outline" (click)="copyToClipboard(serverUrl)">
-                    <i class="ph ph-copy"></i>
+                  <button (click)="copyToClipboard(serverUrl)"
+                          class="bloom-button bg-gray-600 hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                    </svg>
+                    COPY
                   </button>
                 </div>
               </div>
@@ -116,10 +132,18 @@ import {Project} from '../../core/models/project.model';
 
             <div class="card bg-base-500 shadow-sm mb-8 w-full max-w-4xl">
               <div class="card-body">
-                <h2 class="card-title">Logs</h2>
-                <div class="h-[calc(100vh-24rem)] min-h-[300px] relative">
-                  <pre class="bg-neutral text-neutral-content p-4 rounded-lg overflow-auto absolute inset-0" style="padding: 0 8px;">{{ project.logs || 'No logs available' }}</pre>
+                <div class="flex justify-between items-center mb-4">
+                  <h2 class="card-title">Logs</h2>
+                  <button (click)="loadProjectDetails(project.id)"
+                          class="bloom-button bg-slate-600"
+                          [ngClass]="{'hover:bg-slate-700': true}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    REFRESH
+                  </button>
                 </div>
+                <pre class="bg-neutral text-neutral-content p-4 rounded-lg overflow-auto max-h-[500px] min-h-[400px]">{{ project.logs || 'No logs available' }}</pre>
               </div>
             </div>
           </div>
