@@ -9,4 +9,5 @@ export interface Project {
   memoryUsage: number;
   serverUrl: string;
   technology: string;
+  logs: string;
 }
