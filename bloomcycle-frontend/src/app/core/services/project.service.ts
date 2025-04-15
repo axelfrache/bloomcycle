@@ -40,4 +40,8 @@ export class ProjectService {
   stopProject(id: string): Observable<void> {
     return this.apiService.post<void>(`projects/${id}/stop`, {});
   }
+
+  getProjectLogs(id: string): Observable<Project> {
+    return this.apiService.get<Project>(`projects/${id}/logs`);
+  }
 }

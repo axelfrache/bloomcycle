@@ -1,9 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import  { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { catchError, finalize, tap } from 'rxjs/operators';
 import { Observable, of } from 'rxjs';
+import {Project} from '../../core/models/project.model';
 
 @Component({
   selector: 'app-details',
@@ -100,7 +101,9 @@ import { Observable, of } from 'rxjs';
             <div class="card bg-base-500 shadow-sm mb-8 w-full max-w-4xl">
               <div class="card-body">
                 <h2 class="card-title">Logs</h2>
-                <pre class="bg-neutral text-neutral-content p-4 rounded-lg overflow-auto max-h-[300px]">{{ project.logs || 'No logs available' }}</pre>
+                <div class="h-[calc(100vh-24rem)] min-h-[300px] relative">
+                  <pre class="bg-neutral text-neutral-content p-4 rounded-lg overflow-auto absolute inset-0" style="padding: 0 8px;">{{ project.logs || 'No logs available' }}</pre>
+                </div>
               </div>
             </div>
           </div>
@@ -137,12 +140,31 @@ export class DetailsComponent implements OnInit {
     this.error = null;
 
     this.projectService.getProjectDetails(id).pipe(
-      tap(project => this.project = project),
+      tap(project => {
+        this.project = project;
+        if (project.containerStatus === 'RUNNING') {
+          this.loadProjectLogs(id);
+        }
+      }),
       catchError(err => {
         this.error = err.message || `Failed to load project details for ${id}`;
         return of(null);
       }),
       finalize(() => this.isLoading = false)
+    ).subscribe();
+  }
+
+  loadProjectLogs(id: string): void {
+    this.projectService.getProjectLogs(id).pipe(
+      tap((response: Project | null) => {
+        if (this.project) {
+          this.project.logs = response?.logs || 'No logs available';
+        }
+      }),
+      catchError(err => {
+        console.error('Failed to load logs:', err);
+        return of(null);
+      })
     ).subscribe();
   }
 
@@ -156,6 +178,7 @@ export class DetailsComponent implements OnInit {
       tap(() => {
         if (this.project) {
           this.project.containerStatus = 'RUNNING';
+          setTimeout(() => this.loadProjectLogs(this.projectId!), 2000);
         }
       }),
       catchError(err => {
@@ -198,6 +221,7 @@ export class DetailsComponent implements OnInit {
       tap(() => {
         if (this.project) {
           this.project.containerStatus = 'RUNNING';
+          setTimeout(() => this.loadProjectLogs(this.projectId!), 2000);
         }
       }),
       catchError(err => {
