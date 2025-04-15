@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { catchError, finalize, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
+import {Project} from '../../core/models/project.model';
 
 @Component({
   selector: 'app-details',
@@ -159,7 +160,7 @@ export class DetailsComponent implements OnInit {
       tap(project => {
         this.project = project;
         this.serverUrl = project?.serverUrl || null;
-        
+
         if (project.containerStatus === 'RUNNING') {
           this.loadProjectLogs(id);
         }

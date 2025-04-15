@@ -45,7 +45,8 @@ export class ProjectService {
     return this.apiService.post<any>(`projects/${id}/auto-restart`, {
       enabled: enabled
     });
-    
+  }
+
   getProjectLogs(id: string): Observable<Project> {
     return this.apiService.get<Project>(`projects/${id}/logs`);
   }
