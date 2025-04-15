@@ -21,7 +21,7 @@ interface RegisterData {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'https://api-bloomcycle.axelfrache.me/api/v1';
+  private apiUrl = 'http://localhost:9090/api/v1';
   private tokenKey = 'auth_token';
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   private jwtHelper = new JwtHelperService();
