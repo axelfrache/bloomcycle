@@ -57,6 +57,7 @@ Emplacement : `src/app/features/details/details.component.ts`
   - Nom du projet
   - Statut du conteneur
   - CPU et mémoire utilisés
+  - URL d'accès au projet
   - Logs
 
 ### Composant Login
