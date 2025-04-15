@@ -29,8 +29,8 @@ export class ProjectService {
     return this.apiService.delete<void>(`projects/${id}`);
   }
 
-  startProject(id: string): Observable<void> {
-    return this.apiService.post<void>(`projects/${id}/start`, {});
+  startProject(id: string): Observable<{serverUrl: string}> {
+    return this.apiService.post<{serverUrl: string}>(`projects/${id}/start`, {});
   }
 
   restartProject(id: string): Observable<void> {
@@ -39,6 +39,12 @@ export class ProjectService {
 
   stopProject(id: string): Observable<void> {
     return this.apiService.post<void>(`projects/${id}/stop`, {});
+  }
+
+  autoRestartProject(id: string, enabled: boolean): Observable<any> {
+    return this.apiService.post<any>(`projects/${id}/auto-restart`, {
+      enabled: enabled
+    });
   }
 
   getProjectLogs(id: string): Observable<Project> {
