@@ -90,7 +90,6 @@ import { CommonModule } from '@angular/common';
       </form>
     </div>
   `,
-  styleUrl: './register.component.css'
 })
 export class RegisterComponent {
   registerData = {

@@ -151,7 +151,6 @@ import {Project} from '../../core/models/project.model';
       </div>
     </div>
   `,
-  styleUrl: './details.component.css'
 })
 export class DetailsComponent implements OnInit {
   project: any = null;

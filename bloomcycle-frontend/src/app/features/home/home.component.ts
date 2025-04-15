@@ -112,7 +112,6 @@ interface Application {
       </div>
     </div>
   `,
-  styleUrl: './home.component.css'
 })
 export class HomeComponent {
   applications: Application[] = [];
