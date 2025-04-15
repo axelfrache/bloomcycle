@@ -26,6 +26,9 @@ import fr.umontpellier.bloomcycle.model.Project;
 public class DockerService {
     
     private static final Logger log = LoggerFactory.getLogger(DockerService.class);
+    
+    private static final String DOCKER_NETWORK = "bloom-cycle_bloomcycle-network";
+    private static final String FALLBACK_NETWORK = "bloomcycle-network";
 
     @Value("${app.storage.path}")
     private String storagePath;
@@ -50,8 +53,11 @@ public class DockerService {
     }
 
     private String executeDockerCommand(ProcessBuilder processBuilder) throws IOException, InterruptedException {
+        System.out.println("Exécution de la commande: " + String.join(" ", processBuilder.command()));
+        
         var process = processBuilder.start();
         var output = new StringBuilder();
+        var error = new StringBuilder();
         
         try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
@@ -59,10 +65,21 @@ public class DockerService {
                 output.append(line).append("\n");
             }
         }
+        
+        try (var reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                error.append(line).append("\n");
+            }
+        }
 
         var exitCode = process.waitFor();
+        System.out.println("Résultat de la commande (code: " + exitCode + "):");
+        System.out.println("Output: " + output);
+        
         if (exitCode != 0) {
-            throw new RuntimeException("Command failed with output: " + output);
+            System.err.println("Erreur: " + error);
+            throw new RuntimeException("Command failed with exit code " + exitCode + ". Output: " + output + ". Error: " + error);
         }
 
         return output.toString().trim();
@@ -115,36 +132,186 @@ public class DockerService {
         }
     }
 
+    private void ensureNetworkExists() {
+        try {
+            var checkCommand = new String[]{
+                "docker", "network", "inspect", DOCKER_NETWORK
+            };
+            var checkBuilder = new ProcessBuilder(checkCommand).redirectErrorStream(true);
+            
+            try {
+                executeDockerCommand(checkBuilder);
+                System.out.println("Le réseau " + DOCKER_NETWORK + " existe déjà");
+                return;
+            } catch (Exception e) {
+                var checkFallbackCommand = new String[]{
+                    "docker", "network", "inspect", FALLBACK_NETWORK
+                };
+                var checkFallbackBuilder = new ProcessBuilder(checkFallbackCommand).redirectErrorStream(true);
+                
+                try {
+                    executeDockerCommand(checkFallbackBuilder);
+                    System.out.println("Le réseau de secours " + FALLBACK_NETWORK + " existe déjà");
+                    return;
+                } catch (Exception e2) {
+                    System.out.println("Création du réseau Docker " + DOCKER_NETWORK);
+                    var createCommand = new String[]{
+                        "docker", "network", "create", DOCKER_NETWORK
+                    };
+                    var createBuilder = new ProcessBuilder(createCommand).redirectErrorStream(true);
+                    executeDockerCommand(createBuilder);
+                    System.out.println("Réseau Docker " + DOCKER_NETWORK + " créé avec succès");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la vérification/création du réseau Docker: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     private String startContainer(Project project) throws IOException, InterruptedException {
+        ensureNetworkExists();
+        
+        var subdomain = "project-" + project.getId();
+        var containerName = getContainerName(project);
+        
+        System.out.println("Démarrage du conteneur pour le projet " + project.getId() + " avec le nom " + containerName);
+
+        var hostDomain = "localhost".equals(serverHost) ? "bloomcycle.localhost" : serverHost;
+        
+        System.out.println("Utilisation du domaine: " + hostDomain + " pour les labels Traefik");
+        
         var runCommand = new String[]{
             "docker", "run", "-d",
             "-p", "0:3000",
-            "--name", getContainerName(project),
+            "--name", containerName,
+            "--network", DOCKER_NETWORK, // Connecter au réseau de Traefik
+            "--label", "traefik.enable=true",
+            "--label", "traefik.http.routers." + subdomain + ".rule=Host(`" + subdomain + "." + hostDomain + "`)" ,
+            "--label", "traefik.http.routers." + subdomain + ".entrypoints=web",
+            "--label", "traefik.http.services." + subdomain + ".loadbalancer.server.port=3000",
             "--restart", project.isAutoRestartEnabled() ? "unless-stopped" : "on-failure:3",
-            getContainerName(project)
+            containerName
         };
+        
+        System.out.println("Starting container with command: " + String.join(" ", runCommand));
         
         var processBuilder = new ProcessBuilder(runCommand)
             .redirectErrorStream(true);
-        
-        return executeDockerCommand(processBuilder);
+
+        String result;
+        try {
+            result = executeDockerCommand(processBuilder);
+            System.out.println("Container start result: " + result);
+            
+            try {
+                var connectCommand = new String[]{
+                    "docker", "network", "connect", DOCKER_NETWORK, containerName
+                };
+                var connectBuilder = new ProcessBuilder(connectCommand).redirectErrorStream(true);
+                executeDockerCommand(connectBuilder);
+                System.out.println("Conteneur connecté au réseau Traefik avec succès");
+            } catch (Exception e) {
+                System.out.println("Note: Le conteneur est peut-être déjà connecté au réseau: " + e.getMessage());
+            }
+            
+            var inspectCommand = new String[]{
+                "docker", "inspect", "-f", "{{.State.Running}}", containerName
+            };
+            var inspectBuilder = new ProcessBuilder(inspectCommand).redirectErrorStream(true);
+            String runningState = executeDockerCommand(inspectBuilder).trim();
+            
+            if (!"true".equals(runningState)) {
+                System.err.println("Le conteneur n'est pas en cours d'exécution après le démarrage!");
+                var logsCommand = new String[]{
+                    "docker", "logs", containerName
+                };
+                var logsBuilder = new ProcessBuilder(logsCommand).redirectErrorStream(true);
+                String logs = executeDockerCommand(logsBuilder);
+                System.err.println("Logs du conteneur: " + logs);
+            } else {
+                System.out.println("Le conteneur est en cours d'exécution: " + runningState);
+            }
+            return result;
+        } catch (Exception e) {
+            System.err.println("Erreur lors du démarrage du conteneur: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     private String getContainerPort(Project project) throws IOException, InterruptedException {
-        var inspectCommand = new String[]{
-            "docker", "inspect",
-            "--format", "{{(index (index .NetworkSettings.Ports \"3000/tcp\") 0).HostPort}}",
-            getContainerName(project)
-        };
+        String containerName = getContainerName(project);
+        System.out.println("Récupération du port pour le conteneur: " + containerName);
         
-        var processBuilder = new ProcessBuilder(inspectCommand)
-            .redirectErrorStream(true);
-        
-        return executeDockerCommand(processBuilder);
+        try {
+            var inspectCommand = new String[]{
+                "docker", "inspect", "-f", "{{.State.Running}}", containerName
+            };
+            var inspectBuilder = new ProcessBuilder(inspectCommand).redirectErrorStream(true);
+            String runningState = "";
+            
+            try {
+                runningState = executeDockerCommand(inspectBuilder).trim();
+                System.out.println("État du conteneur: " + runningState);
+            } catch (Exception e) {
+                System.err.println("Impossible de vérifier l'état du conteneur: " + e.getMessage());
+                return "3000";
+            }
+            
+            if (!"true".equals(runningState)) {
+                System.out.println("Le conteneur n'est pas en cours d'exécution, utilisation du port par défaut");
+                return "3000";
+            }
+            
+            var portCommand = new String[]{
+                "docker", "port", containerName, "3000"
+            };
+            var portBuilder = new ProcessBuilder(portCommand).redirectErrorStream(true);
+            var portMapping = executeDockerCommand(portBuilder).trim();
+            System.out.println("Mapping de port: " + portMapping);
+            
+            if (portMapping != null && !portMapping.isEmpty()) {
+                var parts = portMapping.split(":");
+                if (parts.length > 1) {
+                    var port = parts[parts.length - 1];
+                    System.out.println("Port récupéré: " + port);
+                    return port;
+                }
+            }
+            
+            System.out.println("Impossible de récupérer le port, utilisation du port par défaut");
+            return "3000";
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la récupération du port: " + e.getMessage());
+            e.printStackTrace();
+            return "3000";
+        }
     }
 
-    private String buildServerUrl(String port) {
-        return String.format("http://%s:%s", serverHost, port);
+    private String buildServerUrl(String port, Project project) {
+        var subdomain = "project-" + project.getId();
+        
+        var basePath = "";
+        
+        var projectName = project.getName() != null ? project.getName().toLowerCase().replace(" ", "-") : "";
+        if (!projectName.isEmpty()) {
+            if (projectName.contains("pokemon")) {
+                basePath = "/pokemon-finder";
+            } else {
+                basePath = "/" + projectName;
+            }
+        }
+        
+        if ("localhost".equals(serverHost)) {
+            return String.format("http://%s.bloomcycle.localhost%s", subdomain, basePath);
+        } else {
+            return String.format("http://%s.%s%s", subdomain, serverHost, basePath);
+        }
+    }
+    
+    private String getProjectIdFromContainerName(String containerName) {
+        return containerName.substring("project-".length());
     }
 
     private CompletableFuture<ContainerInfo> startProject(String projectId) {
@@ -155,23 +322,59 @@ public class DockerService {
                 var dockerfilePath = Path.of(projectPath, "Dockerfile");
 
                 if (!Files.exists(dockerfilePath)) {
+                    System.out.println("Dockerfile not found at: " + dockerfilePath);
                     return ContainerInfo.builder()
                             .status(ContainerStatus.ERROR)
                             .build();
                 }
 
-                buildImage(project);
-                stopAndRemoveContainer(project);
-                startContainer(project);
+                try {
+                    buildImage(project);
+                } catch (Exception e) {
+                    System.out.println("Error building image: " + e.getMessage());
+                    e.printStackTrace();
+                    return ContainerInfo.builder()
+                            .status(ContainerStatus.ERROR)
+                            .build();
+                }
                 
-                var hostPort = getContainerPort(project);
-                var serverUrl = buildServerUrl(hostPort);
+                try {
+                    stopAndRemoveContainer(project);
+                } catch (Exception e) {
+                    System.out.println("Error stopping container: " + e.getMessage());
+                }
+                
+                String containerId;
+                try {
+                    containerId = startContainer(project);
+                    System.out.println("Container started with ID: " + containerId);
+                } catch (Exception e) {
+                    System.out.println("Error starting container: " + e.getMessage());
+                    e.printStackTrace();
+                    return ContainerInfo.builder()
+                            .status(ContainerStatus.ERROR)
+                            .build();
+                }
+                
+                String hostPort;
+                try {
+                    hostPort = getContainerPort(project);
+                    System.out.println("Container port: " + hostPort);
+                } catch (Exception e) {
+                    System.out.println("Error getting container port: " + e.getMessage());
+                    hostPort = "3000";
+                }
+                
+                var serverUrl = buildServerUrl(hostPort, project);
+                System.out.println("Server URL: " + serverUrl);
 
                 return ContainerInfo.builder()
                         .status(ContainerStatus.RUNNING)
                         .serverUrl(serverUrl)
                         .build();
             } catch (Exception e) {
+                System.out.println("Unexpected error in startProject: " + e.getMessage());
+                e.printStackTrace();
                 return ContainerInfo.builder()
                         .status(ContainerStatus.ERROR)
                         .build();
@@ -206,7 +409,7 @@ public class DockerService {
                 executeDockerCommand(processBuilder);
                 
                 var hostPort = getContainerPort(project);
-                var serverUrl = buildServerUrl(hostPort);
+                var serverUrl = buildServerUrl(hostPort, project);
 
                 return ContainerInfo.builder()
                         .status(ContainerStatus.RUNNING)
@@ -249,8 +452,8 @@ public class DockerService {
         var processBuilder = new ProcessBuilder(runCommand)
                 .redirectErrorStream(true);
 
-        String metrics = executeDockerCommand(processBuilder);
-        String[] values = metrics.split(";");
+        var metrics = executeDockerCommand(processBuilder);
+        var values = metrics.split(";");
         return new String[]{
                 values[0].replace("%", ""),
                 values[1].replace("%", "")
@@ -288,7 +491,7 @@ public class DockerService {
         try {
             var project = projectService.getProjectById(projectId);
             var hostPort = getContainerPort(project);
-            return buildServerUrl(hostPort);
+            return buildServerUrl(hostPort, project);
         } catch (Exception e) {
             return null;
         }
@@ -321,7 +524,7 @@ public class DockerService {
                         containerName
                 };
                 var verifyBuilder = new ProcessBuilder(verifyCommand).redirectErrorStream(true);
-                String policy = executeDockerCommand(verifyBuilder);
+                var policy = executeDockerCommand(verifyBuilder);
                 log.info("Verified restart policy for container {}: {}", containerName, policy);
             } else {
                 log.info("Container {} is not running, restart policy will be applied on next start", containerName);
@@ -338,9 +541,8 @@ public class DockerService {
             var project = projectService.getProjectById(projectId);
             
             var containerStatus = getProjectStatus(projectId);
-            if (containerStatus != ContainerStatus.RUNNING) {
+            if (containerStatus != ContainerStatus.RUNNING)
                 return project.isAutoRestartEnabled();
-            }
             
             var command = new String[]{
                     "docker", "inspect",

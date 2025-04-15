@@ -28,11 +28,9 @@ public class ContainerMonitorService {
             .forEach(project -> {
                 try {
                     var status = dockerService.getProjectStatus(project.getId());
-                    if (status == ContainerStatus.STOPPED) {
+                    if (status == ContainerStatus.STOPPED)
                         dockerService.executeOperation(project.getId(), ContainerOperation.START);
-                    }
-                } catch (Exception e) {
-
+                } catch (Exception _) {
                 }
             });
     }

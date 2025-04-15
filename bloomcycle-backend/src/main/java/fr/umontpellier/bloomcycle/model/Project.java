@@ -24,6 +24,10 @@ public class Project {
 
     @Column(name = "auto_restart_enabled")
     private boolean autoRestartEnabled = false;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "project_type")
+    private ProjectType projectType = ProjectType.OTHER;
 
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
