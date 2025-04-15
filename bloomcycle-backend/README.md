@@ -41,6 +41,11 @@ BloomCycle est une plateforme conçue pour gérer, déployer, et maintenir en co
   - Monitoring et métriques
   - Webhooks pour les événements
 
+### Traefik
+
+> En local, **Traefik** redirige correctement les ports vers les projets déployés.  
+> Cependant, la redirection automatique ne fonctionne pas encore avec des **domaines personnalisés** (ex. `mon-app.mondomaine.com`). Cette fonctionnalité est en cours de développement.
+
 ## 🛠 Prérequis
 
 - Java 23+
@@ -125,6 +130,15 @@ POST /api/v1/projects/{id}/stop    # Arrêter le conteneur
 POST /api/v1/projects/{id}/restart # Redémarrer le conteneur
 GET  /api/v1/projects/{id}/status  # État du conteneur
 ```
+
+## Projet d'Exemple
+
+Pour tester rapidement un déploiement de projet JavaScript :
+
+- Repo : [`pokemon-finder`](https://github.com/axelfrache/pokemon-finder)
+- Commande d’import Git :
+  ```bash
+  https://github.com/axelfrache/pokemon-finder.git
 
 ## Sécurité
 
