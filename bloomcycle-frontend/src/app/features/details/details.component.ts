@@ -116,10 +116,18 @@ import {Project} from '../../core/models/project.model';
 
             <div class="card bg-base-500 shadow-sm mb-8 w-full max-w-4xl">
               <div class="card-body">
-                <h2 class="card-title">Logs</h2>
-                <div class="h-[calc(100vh-24rem)] min-h-[300px] relative">
-                  <pre class="bg-neutral text-neutral-content p-4 rounded-lg overflow-auto absolute inset-0" style="padding: 0 8px;">{{ project.logs || 'No logs available' }}</pre>
+                <div class="flex justify-between items-center mb-4">
+                  <h2 class="card-title">Logs</h2>
+                  <button (click)="loadProjectDetails(project.id)" 
+                          class="bloom-button bg-slate-600"
+                          [ngClass]="{'hover:bg-slate-700': true}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1em]">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    REFRESH
+                  </button>
                 </div>
+                <pre class="bg-neutral text-neutral-content p-4 rounded-lg overflow-auto max-h-[500px] min-h-[400px]">{{ project.logs || 'No logs available' }}</pre>
               </div>
             </div>
           </div>
