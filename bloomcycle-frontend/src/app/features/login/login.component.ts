@@ -50,7 +50,6 @@ import { CommonModule } from '@angular/common';
       </form>
     </div>
   `,
-  styleUrl: './login.component.css'
 })
 export class LoginComponent {
   loginData = {
