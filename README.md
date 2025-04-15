@@ -4,23 +4,34 @@ BloomCycle est une plateforme complète conçue pour gérer, déployer et mainte
 
 ## Fonctionnalités principales
 
-- **Surveillance des applications** : Visualisation des applications en cours d'exécution, arrêtées ou en erreur via API et interface web
-- **Support multi-instances** : Capacité à exécuter plusieurs instances d'une même application simultanément
+### Déploiement et Gestion des Applications
 - **Build from source** : Construction automatique à partir des sources (Java, Node.js, Python)
-- **Support de sites statiques** : Déploiement simplifié pour les sites web statiques
 - **Déploiement conteneurisé** : Support des images Docker avec démarrage à la demande
+- **Support de sites statiques** : Déploiement simplifié pour les sites web statiques
+- **Support multi-instances** : Capacité à exécuter plusieurs instances d'une même application simultanément
+- **Mono-machine** : Optimisé pour fonctionner sur une seule VM
+
+### Cycle de Vie et Haute Disponibilité
 - **Démarrage et redémarrage** : Contrôle total sur le cycle de vie des applications
 - **Redémarrage automatique** : Détection et relance automatique en cas de crash
 - **Rolling updates** : Mise à jour sans interruption de service pour les utilisateurs connectés
-- **Mono-machine** : Optimisé pour fonctionner sur une seule VM
+- **Surveillance des applications** : Visualisation des applications en cours d'exécution, arrêtées ou en erreur
+
+### Réseau et Domaines
 - **Routing HTTP/HTTPS** : Support intégré avec redirection automatique
 - **Custom domains** : Possibilité d'associer des noms de domaine personnalisés
+
+### Monitoring et Observabilité
 - **Logs & métriques** : Suivi en temps réel de l'utilisation CPU, mémoire et autres ressources
+
+### Sécurité et Gestion des Accès
 - **Multi-tenant** : Isolation des données et visibilité limitée aux ressources de l'utilisateur
 - **Authentification JWT** : Sécurisation des accès avec JSON Web Tokens
 - **Gestion des accès utilisateurs** : Chaque utilisateur n'a accès qu'à ses propres projets
-- **API REST documentée** : Documentation complète via OpenAPI/Swagger
+
+### Interface et API
 - **Interface utilisateur intuitive** : Développée avec Angular et DaisyUI
+- **API REST documentée** : Documentation complète via OpenAPI/Swagger
 
 ## Prérequis
 
