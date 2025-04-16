@@ -7,7 +7,7 @@ import { catchError } from 'rxjs/operators';
   providedIn: 'root'
 })
 export class ApiService {
-  private baseUrl = 'https://api-bloomcycle.axelfrache.me/api/v1';
+  private baseUrl = 'http://localhost:9090/api/v1';
 
   constructor(private http: HttpClient) {}
 
